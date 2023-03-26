@@ -66,7 +66,7 @@ bool setup_serial(int fd, int baudrate, int flags) {
       | ISIG);   //disable INTR, QUIT, SUSP control characters
 
   tty.c_iflag &= ~( 0
-      | IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL);  //disable special byte sequences
+      | IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF);  //disable special byte sequences
 
   tty.c_oflag &= ~( 0
       | OPOST    //disable special interpretations of output eg newlines

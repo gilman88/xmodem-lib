@@ -220,6 +220,9 @@ bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs) {
       read(*fd, &b, 1);
     }
 
+#ifdef XMODEM_RESPONSE_DEBUG
+    debug_print_byte(b);
+#endif
     if(b == byte) return true;
   } while(time(NULL) < end);
   return false;
@@ -426,6 +429,7 @@ bool _xmodem_fill_buffer(int *fd, struct xmodem_config *config, unsigned char *b
   size_t count = 0;
   while(count < bytes) {
     ssize_t r = read(*fd, buffer + count, bytes - count);
+    for(ssize_t i = 0; i < r; ++i) debug_print_byte(buffer[count + i]);
 
     //the baud rate / sending device may be much slower than ourselves so
     //we only signal an error condition if no data has been received at all
