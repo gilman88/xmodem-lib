@@ -81,7 +81,7 @@ bool XModem::receive() {
   return true;
 }
 
-bool XModem::send(char *data, size_t data_len, unsigned long long start_id) {
+bool XModem::send(byte *data, size_t data_len, unsigned long long start_id) {
   byte *id = (byte *) malloc(_id_bytes);
 
   //convert the start_id to big endian format
@@ -94,7 +94,7 @@ bool XModem::send(char *data, size_t data_len, unsigned long long start_id) {
   struct bulk_data container;
   container.data_arr = &data;
   container.len_arr = &data_len;
-  container.id_arr = &id;
+  container.id_arr = id;
   container.count = 1;
 
   bool result = send_bulk_data(container);
@@ -137,7 +137,7 @@ bool XModem::send_bulk_data(struct bulk_data container) {
   return result;
 }
 
-bool XModem::send(char *data, size_t data_len) {
+bool XModem::send(byte *data, size_t data_len) {
   send(data, data_len, 1);
 }
 

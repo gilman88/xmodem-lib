@@ -10,7 +10,7 @@
 bool setup_serial(int fd, int baudrate, int flags);
 int open_serial(char* device_path, int baudrate);
 
-bool handler(void *blk_id, size_t id_len, char *data, size_t data_len) {
+bool handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len) {
   printf("\nrx:\n");
   write(fileno(stdout), data, data_len);
   return true;

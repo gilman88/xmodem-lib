@@ -36,7 +36,7 @@ bool _xmodem_init_rx(int *fd, struct xmodem_config *config);
 bool find_header(int *fd);
 bool _xmodem_rx(int *fd, struct xmodem_config *config);
 bool _xmodem_init_tx(int *fd, struct xmodem_config *config);
-bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, char *data, size_t data_len, char *blk_id);
+bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, char *blk_id);
 bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *buffer);
 bool _xmodem_fill_buffer(int *fd, struct xmodem_config *config, unsigned char *buffer, size_t packet_bytes);
 unsigned char _xmodem_tx_signal(int *fd, unsigned char signal);
@@ -45,7 +45,7 @@ bool _xmodem_send_packet(int *fd, struct xmodem_config *config, struct xmodem_pa
 void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p, unsigned char *id, char *data, size_t data_len);
 void fill_checksum_basic(unsigned char *data, size_t data_bytes, unsigned char *chksm);
 void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char *chksm);
-bool dummy_rx_block_handler(void *blk_id, size_t id_len, char *data, size_t data_len);
+bool dummy_rx_block_handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len);
 bool _xmodem_close_tx(int *fd);
 
 void init_config(struct xmodem_config* config, enum x_mode mode) {
@@ -95,7 +95,7 @@ void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char 
   }
 }
 
-bool dummy_rx_block_handler(void *blk_id, size_t id_len, char *data, size_t data_len) { return true; }
+bool dummy_rx_block_handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len) { return true; }
 
 void print_byte(int fd, unsigned char byte) {
   static char *lower_ascii_lookup = "<nul>\0<soh>\0<stx>\0<etx>\0<eot>\0<enq>\0<ack>\0<bel>\0<bs>\0\0"
@@ -135,7 +135,7 @@ bool xmodem_receive(int *fd, struct xmodem_config *config) {
   return true;
 }
 
-bool xmodem_send(int *fd, struct xmodem_config *config, char *data, size_t data_len, unsigned long long start_id) {
+bool xmodem_send(int *fd, struct xmodem_config *config, unsigned char *data, size_t data_len, unsigned long long start_id) {
   unsigned char *id = malloc(config->id_bytes);
 
   //convert the start id to big endian format
@@ -148,7 +148,7 @@ bool xmodem_send(int *fd, struct xmodem_config *config, char *data, size_t data_
   struct xmodem_bulk_data container;
   container.data_arr = &data;
   container.len_arr = &data_len;
-  container.id_arr = &id;
+  container.id_arr = id;
   container.count = 1;
 
   bool result = xmodem_send_bulk_data(fd, config, container);
@@ -442,7 +442,7 @@ bool _xmodem_init_tx(int *fd, struct xmodem_config *config) {
   return false;
 }
 
-bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, char *data, size_t data_len, char *blk_id) {
+bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, char *blk_id) {
   char *data_ptr = data;
   char *data_end = data_ptr + data_len;
 

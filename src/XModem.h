@@ -38,13 +38,13 @@ class XModem {
     void setRecieveBlockHandler(bool (*handler) (void *blk_id, size_t idSize, byte *data, size_t dataSize));
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
     bool receive();
-    bool send(char data[], size_t data_len);
-    bool send(char data[], size_t data_len, unsigned long long start_id);
+    bool send(byte data[], size_t data_len);
+    bool send(byte data[], size_t data_len, unsigned long long start_id);
 
     struct bulk_data {
-      char **data_arr;
+      byte **data_arr;
       size_t *len_arr;
-      byte **id_arr; //each id is _id_bytes long in big endian format
+      byte *id_arr; //each id is _id_bytes long in big endian format
       size_t count;
     };
 

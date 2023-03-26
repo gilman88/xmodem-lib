@@ -21,7 +21,7 @@ struct xmodem_config {
   size_t chksm_bytes;
   unsigned char rx_init_byte;
   //function pointer handlers
-  bool (*rx_block_handler) (void *blk_id, size_t id_len, char *data, size_t data_len);
+  bool (*rx_block_handler) (void *blk_id, size_t id_len, unsigned char *data, size_t data_len);
   void (*calc_chksum) (unsigned char *data, size_t data_bytes, unsigned char *chksm);
 };
 
@@ -32,15 +32,15 @@ void init_config(struct xmodem_config* config, enum x_mode mode);
 void print_byte(int fd, unsigned char byte);
 
 bool xmodem_receive(int *fd, struct xmodem_config *config);
-bool xmodem_send(int *fd, struct xmodem_config *config, char *data, size_t data_len, unsigned long long start_id);
+bool xmodem_send(int *fd, struct xmodem_config *config, unsigned char *data, size_t data_len, unsigned long long start_id);
 #define xmodem_send(fd, config, data, data_len, ...) xmodem_send_default(fd, config, data, data_len, ##__VA_ARGS__, 1)
 #define xmodem_send_default(fd, config, data, data_len, id, ...) xmodem_send(fd, config, data, data_len, id)
 
 struct xmodem_bulk_data {
-  char **data_arr;
+  unsigned char **data_arr;
   size_t *len_arr;
   //each id is xmodem_config.id_bytes long in big endian format
-  unsigned char **id_arr;
+  unsigned char *id_arr;
   size_t count;
 };
 

@@ -165,12 +165,14 @@ bool send_bulk_data(Bulk Data Struct)
 
  Bulk Data Struct:
  This structure contains the following members:
-  char **data_arr   - an array of pointers to the data blocks to send
-  size_t *len_array - an array of the lengths of each data block
-  byte **id_arr     - an array of pointers to the starting XModem packet id of
-                      each data block, each id is expected to be ID Size bytes
-                      long and in big endian format
-  size_t count      - the number of data blocks in this struct
+  byte **data_arr   - An array of pointers to the data blocks to send, if there are
+                      any NULL pointers then the corresponding packet id will be passed
+                      to the Block Lookup Handler to retrieve the data that will be sent
+  size_t *len_array - An array of the lengths of each data block
+  byte *id_arr      - An array of the starting XModem packet id of each data
+                      block, each id is expected to be ID Size bytes long and
+                      in big endian format
+  size_t count      - The number of data blocks in this struct
 
  *NOTE
   This library's receive implementation tracks duplicate blocks by keeping track
