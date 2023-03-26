@@ -36,10 +36,12 @@ class XModem {
     void allowNonSequentailBlocks(bool b);
     void bufferPacketReads(bool b);
     void setRecieveBlockHandler(bool (*handler) (void *blk_id, size_t idSize, byte *data, size_t dataSize));
+    void setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize));
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
     bool receive();
     bool send(byte data[], size_t data_len);
     bool send(byte data[], size_t data_len, unsigned long long start_id);
+    bool lookup_send(unsigned long long id);
 
     struct bulk_data {
       byte **data_arr;
@@ -61,9 +63,11 @@ class XModem {
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
     bool (*process_rx_block) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
+    bool (*block_lookup) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
     void (*calc_chksum) (byte *data, size_t dataSize, byte *chksum);
 
     static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
+    static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
     static void basic_chksum(byte *data, size_t dataSize, byte *chksum);
     static void crc_16_chksum(byte *data, size_t dataSize, byte *chksum);
 

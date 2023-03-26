@@ -46,6 +46,7 @@ void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p,
 void fill_checksum_basic(unsigned char *data, size_t data_bytes, unsigned char *chksm);
 void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char *chksm);
 bool dummy_rx_block_handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len);
+void dummy_block_lookup(void *blk_id, size_t id_len, unsigned char *send_data, size_t data_len);
 bool _xmodem_close_tx(int *fd);
 
 void init_config(struct xmodem_config* config, enum x_mode mode) {
@@ -66,6 +67,7 @@ void init_config(struct xmodem_config* config, enum x_mode mode) {
       break;
   }
   config->rx_block_handler = dummy_rx_block_handler;
+  config->block_lookup = dummy_block_lookup;
 }
 
 void fill_checksum_basic(unsigned char *data, size_t data_bytes, unsigned char *chksm) {
@@ -96,6 +98,7 @@ void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char 
 }
 
 bool dummy_rx_block_handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len) { return true; }
+void dummy_block_lookup(void *blk_id, size_t id_len, unsigned char *send_data, size_t data_len) { memset(send_data, 0x3A, data_len); }
 
 void print_byte(int fd, unsigned char byte) {
   static char *lower_ascii_lookup = "<nul>\0<soh>\0<stx>\0<etx>\0<eot>\0<enq>\0<ack>\0<bel>\0<bs>\0\0"
@@ -154,6 +157,10 @@ bool xmodem_send(int *fd, struct xmodem_config *config, unsigned char *data, siz
   bool result = xmodem_send_bulk_data(fd, config, container);
   free(id);
   return result;
+}
+
+bool xmodem_lookup_send(int *fd, struct xmodem_config *config, unsigned long long id) {
+  return xmodem_send(fd, config, (char *) NULL, 0, id);
 }
 
 bool xmodem_send_bulk_data(int *fd, struct xmodem_config *config, struct xmodem_bulk_data container) {
@@ -449,6 +456,12 @@ bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, 
   //flush the incoming stream before starting
   tcflush(*fd, TCIFLUSH);
 
+  if(data == NULL) {
+    //need to use block_lookup to fill in the packet data
+    _xmodem_build_packet(config, p, blk_id, NULL, config->data_bytes);
+    return _xmodem_send_packet(fd, config, p);
+  }
+
   while(data_ptr + config->data_bytes < data_end) {
     _xmodem_build_packet(config, p, blk_id, data_ptr, config->data_bytes);
     increment_id(blk_id, config->id_bytes);
@@ -485,7 +498,8 @@ void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p,
   debug_print("\n");
 
   memcpy(p->id, id, config->id_bytes);
-  memcpy(p->data, data, data_len);
+  if(data == NULL) config->block_lookup(id, config->id_bytes, p->data, data_len);
+  else memcpy(p->data, data, data_len);
   config->calc_chksum(p->data, config->data_bytes, p->chksm);
 }
 

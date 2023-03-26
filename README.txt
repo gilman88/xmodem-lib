@@ -37,6 +37,8 @@ There are also setter methods for providing handler functions:
 
 Recieve Block Handler - This handler will be called to process the received
                         data as each packet is recieved.
+Block Lookup Handler  - This handler will be called to load data for sending
+                        from external data storage based on the block id.
 Checksum Handler      - This handler is used to calulate the expected packet
                         checksum both when sending and recieving.
 
@@ -97,6 +99,14 @@ bool send(char[] data, size_t data_len, unsigned long long start_id)
  first XModem packet. Note that while using a start_id of 0 is possible the
  receiving device will by defualt discard it.
 
+bool lookup_send(unsigned long long start_id)
+ Start attempting to send data returned by the Block Lookup Handler. Returns
+ TRUE when the transfer has completed successfully and FALSE if an error
+ occured. The provided id is truncated down to the ID Size least significant
+ bytes and used as the packet ID for the XModem packet, it is also passed to
+ the Block Lookup Handler. Note that while using a start_id of 0 is possible
+ the receiving device will by defualt discard it.
+
 void setIdSize(size_t)
  Set the number of ID bytes in an XModem packet
 
@@ -143,6 +153,17 @@ void setRecieveBlockHandler(Receive Block Handler)
  what is stored in a RAM chip and write the difference to it. If you plan to
  receive data then you need to set this as the default Receive Block Handler
  simply discards all data.
+
+void setBlockLookupHandler(Block Lookup Handler)
+ Block Lookup Handler prototype: void handler(void *blk_id, size_t idSize, byte *send_data, size_t dataSize)
+ This allows you to use an external data storage by using the blk_id as an
+ lookup index/address and loading the dataSize bytes into the send_data pointer.
+ This avoids needing to preload a full transactions worth of data in memory
+ before sending. If you plan to send data this way you will need to set this
+ and use the lookup_send method or the send_bulk_data method with every id
+ that should be looked up corresponding to a NULL data pointer and 0 len value.
+ The default Block Lookup Handler fills the send_data pointer memory with the
+ byte 0x3A (the colon character ':').
 
 void setChksumHandler(Checksum Handler)
  Checksum Handler prototype: void handler(byte *data, size_t dataSize, byte *chksum)

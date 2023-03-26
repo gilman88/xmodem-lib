@@ -26,6 +26,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::P
   _allow_nonsequential = false;
   _buffer_packet_reads = true;
   process_rx_block = XModem::dummy_rx_block_handler;
+  block_lookup = XModem::dummy_block_lookup;
 }
 
 // SETTERS
@@ -65,6 +66,10 @@ void XModem::setRecieveBlockHandler(bool (*handler) (void *blk_id, size_t idSize
   process_rx_block = handler;
 }
 
+void XModem::setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize)) {
+  block_lookup = handler;
+}
+
 void XModem::setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum)) {
   calc_chksum = handler;
 }
@@ -79,6 +84,10 @@ bool XModem::receive() {
     return false;
   }
   return true;
+}
+
+bool XModem::lookup_send(unsigned long long id) {
+  return send((char*) NULL, 0, id);
 }
 
 bool XModem::send(byte *data, size_t data_len, unsigned long long start_id) {
@@ -343,6 +352,12 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
   //flush incoming data before starting
   while(_serial->available()) _serial->read();
 
+  if(data == NULL) {
+    //need to use block_lookup to fill in the packet data
+    build_packet(p, blk_id, NULL, _data_bytes);
+    return send_packet(p);
+  }
+
   while(data_ptr + _data_bytes < data_end) {
     build_packet(p, blk_id, data_ptr, _data_bytes);
     increment_id(blk_id, _id_bytes);
@@ -362,7 +377,8 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
 
 void XModem::build_packet(struct packet *p, byte *id, byte *data, size_t data_len) {
   memcpy(p->id, id, _id_bytes);
-  memcpy(p->data, data, data_len);
+  if(data == NULL) block_lookup(id, _id_bytes, p->data, data_len);
+  else memcpy(p->data, data, data_len);
   calc_chksum(p->data, _data_bytes, p->chksum);
 }
 
@@ -462,6 +478,10 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
 // DEFAULT HANDLERS
 static bool XModem::dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
   return true;
+}
+
+static void XModem::dummy_block_lookup(void *blk_id, size_t idSize, byte *send_data, size_t dataSize) {
+  memset(send_data, 0x3A, dataSize);
 }
 
 static void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
