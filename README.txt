@@ -3,7 +3,7 @@ use the official values for the XModem protocol so will be able to communicate
 with other XModem devices/software.
 
 The XModem protocol provides a way to reliably transmit raw binary data over a
-helf-duplex serial connnection, however in most cases it requires at least
+half-duplex serial connnection, however in most cases it requires at least
 enough memory to hold a full data packet in order to work properly.
 
 I created this library in order to send/receive large amounts of data without
@@ -37,7 +37,7 @@ There are also setter methods for providing handler functions:
 
 Recieve Block Handler - This handler will be called to process the received
                         data as each packet is recieved.
-Checksum Handler -      This handler is used to calulate the expected packet
+Checksum Handler      - This handler is used to calulate the expected packet
                         checksum both when sending and recieving.
 
 GETTING STARTED
@@ -78,11 +78,12 @@ begin(HardwareSerial, XModem::ProtocolType)
 
 bool receive()
  Start waiting for incoming data. Returns TRUE when the sending device signals
- that the transfer is complete and FLASE if an error occured. Any data received
+ that the transfer is complete and FALSE if an error occured. Any data received
  will be passed to the Receive Block Handler along with the packet id for
  processing before signalling for the next block, aside from regular protocol
  errors transfers can also be aborted by returning FALSE from the Receive Block
- Handler.
+ Handler. If consecutive blocks are recieved with the same block Id then only
+ the first instance will be passed to the Recieve Block Handler for processing.
 
 bool send(char[] data, size_t data_len)
  Start attempting to send data. Returns TRUE when the transfer has completed
@@ -93,7 +94,8 @@ bool send(char[] data, size_t data_len, unsigned long long start_id)
  Start attempting to send data. Returns TRUE when the transfer has completed
  succesfully and FALSE if an error occured. The provided start_id is truncated
  down to the ID Size least significant bytes and used as the packet ID for the
- first XModem packet.
+ first XModem packet. Note that while using a start_id of 0 is possible the
+ receiving device will by defualt discard it.
 
 void setIdSize(size_t)
  Set the number of ID bytes in an XModem packet
@@ -169,6 +171,12 @@ bool send_bulk_data(Bulk Data Struct)
                       each data block, each id is expected to be ID Size bytes
                       long and in big endian format
   size_t count      - the number of data blocks in this struct
+
+ *NOTE
+  This library's receive implementation tracks duplicate blocks by keeping track
+  of the previously sent block_id which is initialized to 0 since the expected
+  first block_id for XModem is 1. So if you need to transmit the 0 block_id then
+  make sure to transmit another block_id first.
 
 PERFORMANCE
 
