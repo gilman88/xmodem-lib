@@ -128,9 +128,9 @@ bool XModem::send_bulk_data(struct bulk_data container) {
   p.data = buffer;
 
   bool result = init_tx();
-  while(result && container.count-- != 0) {
-    for(size_t i = 0; i < _id_bytes; ++i) blk_id[i] = container.id_arr[container.count][i];
-    result &= tx(&p, container.data_arr[container.count], container.len_arr[container.count], blk_id);
+  for(size_t j = 0; result && j < container.count; ++j) {
+    for(size_t i = 0; i < _id_bytes; ++i) blk_id[i] = container.id_arr[j*_id_bytes + i];
+    result &= tx(&p, container.data_arr[j], container.len_arr[j], blk_id);
   }
 
   if(result) {

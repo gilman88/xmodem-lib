@@ -180,9 +180,9 @@ bool xmodem_send_bulk_data(int *fd, struct xmodem_config *config, struct xmodem_
   p.data = buffer;
 
   bool result = _xmodem_init_tx(fd, config);
-  while(result && container.count-- != 0) {
-    for(size_t i = 0; i < config->data_bytes; ++i) blk_id[i] = container.id_arr[container.count][i];
-    result &= _xmodem_tx(fd, config, &p, container.data_arr[container.count], container.len_arr[container.count], blk_id);
+  for(size_t j = 0; result && j < container.count; ++j) {
+    for(size_t i = 0; i < config->id_bytes; ++i) blk_id[i] = container.id_arr[j*config->id_bytes + i];
+    result &= _xmodem_tx(fd, config, &p, container.data_arr[j], container.len_arr[j], blk_id);
   }
 
   if(result) {
@@ -211,7 +211,7 @@ inline void increment_id(unsigned char *id, size_t length) {
 }
 
 bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs) {
-  unsigned char b;
+  unsigned char b = 0;
   time_t end = time(NULL) + timeout_secs;
   do {
     //if no data is available sleep and check again before checking the value of b
