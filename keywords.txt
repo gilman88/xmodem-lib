@@ -11,9 +11,11 @@ setSignalRetryDelay	KEYWORD2
 allowNonSequentailBlocks	KEYWORD2
 bufferPacketReads	KEYWORD2
 setRecieveBlockHandler	KEYWORD2
+setBlockLookupHandler	KEYWORD2
 setChksumHandler	KEYWORD2
 send	KEYWORD2
 send_bulk_data	KEYWORD2
+lookup_send	KEYWORD2
 receive	KEYWORD2
 XMODEM	LITERAL1
 CRC_XMODEM	LITERAL1
