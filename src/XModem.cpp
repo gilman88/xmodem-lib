@@ -3,7 +3,7 @@
 
 XModem::XModem() {}
 
-void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::ProtocolType::XMODEM) {
+void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _serial = &serial;
   switch(type) {
     case ProtocolType::XMODEM:
@@ -26,7 +26,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::P
   _allow_nonsequential = false;
   _buffer_packet_reads = true;
   process_rx_block = XModem::dummy_rx_block_handler;
-  block_lookup = XModem::dummy_block_lookup;
+  block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 }
 
 // SETTERS
@@ -87,7 +87,7 @@ bool XModem::receive() {
 }
 
 bool XModem::lookup_send(unsigned long long id) {
-  return send((char*) NULL, 0, id);
+  return send((byte*) NULL, 0, id);
 }
 
 bool XModem::send(byte *data, size_t data_len, unsigned long long start_id) {
@@ -147,7 +147,7 @@ bool XModem::send_bulk_data(struct bulk_data container) {
 }
 
 bool XModem::send(byte *data, size_t data_len) {
-  send(data, data_len, 1);
+  return send(data, data_len, 1);
 }
 
 // INTERNAL RECEIVE METHODS
@@ -475,22 +475,22 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
   return false;
 }
 
-// DEFAULT HANDLERS
-static bool XModem::dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
+// DEFAULT HANDLERS static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
+bool XModem::dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
   return true;
 }
 
-static void XModem::dummy_block_lookup(void *blk_id, size_t idSize, byte *send_data, size_t dataSize) {
+void XModem::dummy_block_lookup(void *blk_id, size_t idSize, byte *send_data, size_t dataSize) {
   memset(send_data, 0x3A, dataSize);
 }
 
-static void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
+void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
   byte sum = 0;
   for(size_t i = 0; i < dataSize; ++i) sum += data[i];
   *chksum = sum;
 }
 
-static void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
+void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
   //XModem CRC prime number is 69665 -> 2^16 + 2^12 + 2^5 + 2^0 -> 10001000000100001 -> 0x11021
   //normal notation of this bit pattern omits the leading bit and represents it as 0x1021
   //in code we can omit the 2^16 term due to shifting before XORing when the MSB is a 1

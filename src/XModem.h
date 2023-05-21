@@ -63,7 +63,7 @@ class XModem {
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
     bool (*process_rx_block) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
-    bool (*block_lookup) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
+    void (*block_lookup) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
     void (*calc_chksum) (byte *data, size_t dataSize, byte *chksum);
 
     static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
