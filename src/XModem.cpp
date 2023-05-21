@@ -1,7 +1,9 @@
 #include "Arduino.h"
 #include "XModem.h"
 
-XModem::XModem() {}
+XModem::XModem(){
+  myXModem._onXmodemReceiveHandler = nullptr;
+}
 
 void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _serial = &serial;
@@ -168,7 +170,9 @@ bool XModem::find_header() {
   } while(i++ < retry_limit);
   return false;
 }
-
+/**
+ * Equals bool _xmodem_rx(int *fd, struct xmodem_config *config) <-- linux
+*/
 bool XModem::rx() {
   bool result = false;
 
@@ -477,6 +481,12 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
 
 // DEFAULT HANDLERS static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 bool XModem::dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
+  // aqui call fe rel callback;
+  
+  if (myXModem._onXmodemReceiveHandler) {
+      myXModem._onXmodemReceiveHandler(data,dataSize);
+  }
+  
   return true;
 }
 
@@ -490,7 +500,7 @@ void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
   *chksum = sum;
 }
 
-void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
+ void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
   //XModem CRC prime number is 69665 -> 2^16 + 2^12 + 2^5 + 2^0 -> 10001000000100001 -> 0x11021
   //normal notation of this bit pattern omits the leading bit and represents it as 0x1021
   //in code we can omit the 2^16 term due to shifting before XORing when the MSB is a 1
@@ -510,3 +520,11 @@ void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
     }
   }
 }
+
+void XModem::onXmodemReceive(bool(*callback)(byte *data, size_t dataSize))
+{
+  _onXmodemReceiveHandler = callback;
+  //_instance = this;
+}
+// ho has de cridar  atrave´s del extern
+XModem myXModem;

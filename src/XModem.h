@@ -43,6 +43,10 @@ class XModem {
     bool send(byte data[], size_t data_len, unsigned long long start_id);
     bool lookup_send(unsigned long long id);
 
+    typedef bool (*XmodemReceiveHandler)( byte *data, size_t dataSize);
+    void onXmodemReceive(XmodemReceiveHandler handler);
+    XmodemReceiveHandler _onXmodemReceiveHandler;
+    
     struct bulk_data {
       byte **data_arr;
       size_t *len_arr;
@@ -90,11 +94,15 @@ class XModem {
     void build_packet(struct packet *p, byte *id, byte *data, size_t data_len);
     bool send_packet(struct packet *p);
     bool close_tx();
-
+    
     void increment_id(byte *id, size_t length);
     byte tx_signal(byte signal);
     byte rx_signal();
     bool find_byte_timed(byte b, byte timeout_secs);
+    
+    
 };
+
+extern XModem myXModem;
 
 #endif

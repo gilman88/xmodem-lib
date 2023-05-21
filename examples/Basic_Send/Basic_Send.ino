@@ -1,5 +1,5 @@
+#include <Arduino.h>
 #include <XModem.h>
-XModem xmodem;
 
 /*
  * You can test this over your USB port using lrzsz: `stty -F /dev/ttyUSB0 4800 && rx -vaX /path/to/save/file > /dev/ttyUSB0 < /dev/ttyUSB0`
@@ -7,7 +7,7 @@ XModem xmodem;
  */
 void setup() {
   Serial.begin(4800, SERIAL_8N1);
-  xmodem.begin(Serial, XModem::ProtocolType::XMODEM);
+  myXModem.begin(Serial, XModem::ProtocolType::XMODEM);
 }
 
 static const char text[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sollicitudin tempor ex et sagittis. Sed feugiat justo ac dui posuere, in porta odio aliquet. Vestibulum dignissim malesuada lacus eu consectetur. Fusce sed varius nibh. Nulla lacinia ipsum non porttitor auctor. Aenean eget eros pharetra, fringilla ipsum eget, pharetra turpis. Suspendisse vitae leo id orci consectetur faucibus. Praesent elementum ex eget venenatis consequat.\n"
@@ -16,5 +16,5 @@ static const char text[] = "Lorem ipsum dolor sit amet, consectetur adipiscing e
 
 void loop() {
   //This simple example continuously tries to send data
-  xmodem.send(text, strlen(text));
+  myXModem.send(reinterpret_cast<byte*>(const_cast<char*>(text)), strlen(text));
 }
