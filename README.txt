@@ -235,5 +235,8 @@ FUTURE WORK
 - Allow SoftwareSerial or HardwareSerial to be used interchangeably?
 - CRC_XMODEM needs debugging, trying to test using a basic sketch and lrzsz
   I need a way to spy on what lrzsz is sending/receiving
-- Raspberry Pi Pico (RP2040) port
 - A standardised performance testing sketch
+
+Credits
+Main: https://github.com/gilman88
+A few fixes: https://github.com/Garfius
