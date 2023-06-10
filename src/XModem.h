@@ -35,7 +35,6 @@ class XModem {
     void setSignalRetryDelay(unsigned long ms);
     void allowNonSequentailBlocks(bool b);
     void bufferPacketReads(bool b);
-    void setRecieveBlockHandler(bool (*handler) (void *blk_id, size_t idSize, byte *data, size_t dataSize));
     void setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize));
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
     bool receive();
@@ -66,11 +65,11 @@ class XModem {
     unsigned long _signal_retry_delay_ms;
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
-    bool (*process_rx_block) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
+    //bool (*process_rx_block) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
     void (*block_lookup) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
     void (*calc_chksum) (byte *data, size_t dataSize, byte *chksum);
 
-    static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
+    static bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
     static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
     static void basic_chksum(byte *data, size_t dataSize, byte *chksum);
     static void crc_16_chksum(byte *data, size_t dataSize, byte *chksum);
@@ -79,6 +78,7 @@ class XModem {
       byte *id;
       byte *chksum;
       byte *data;
+      unsigned short crc;
     };
 
     bool init_rx();

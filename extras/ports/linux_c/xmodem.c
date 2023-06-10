@@ -81,7 +81,7 @@ void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char 
   //normal notation of this bit pattern omits the leading bit and represents it as 0x1021
   //in code we can omit the 2^16 term due to shifting before XORing when the MSB is a 1
   const unsigned short crc_prime = 0x1021;
-  unsigned short *crc = (unsigned short *) chksm;
+  //unsigned short *crc = (unsigned short *) chksm;
   *crc = 0;
 
   //We can ignore crc calulations that cross byte boundaries by just assuming

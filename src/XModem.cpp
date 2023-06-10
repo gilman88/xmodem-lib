@@ -27,7 +27,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _signal_retry_delay_ms = 100;
   _allow_nonsequential = false;
   _buffer_packet_reads = true;
-  process_rx_block = XModem::dummy_rx_block_handler;
+  //process_rx_block = XModem::dummy_rx_block_handler;
   block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 }
 
@@ -64,10 +64,6 @@ void XModem::bufferPacketReads(bool b) {
   _buffer_packet_reads = b;
 }
 
-void XModem::setRecieveBlockHandler(bool (*handler) (void *blk_id, size_t idSize, byte *data, size_t dataSize)) {
-  process_rx_block = handler;
-}
-
 void XModem::setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize)) {
   block_lookup = handler;
 }
@@ -89,7 +85,7 @@ bool XModem::receive() {
 }
 
 bool XModem::lookup_send(unsigned long long id) {
-  return send((byte*) NULL, 0, id);
+  return send((uint8_t*) NULL, 0, id);
 }
 
 bool XModem::send(byte *data, size_t data_len, unsigned long long start_id) {
@@ -238,7 +234,7 @@ bool XModem::rx() {
         while(p.data[_data_bytes - 1 - padding_bytes] == SUB) ++padding_bytes;
 
         //process packet
-        if(!process_rx_block(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
+        if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
 
         for(size_t i = 0; i < _id_bytes; ++i) prev_blk_id[i] = expected_id[i];
       }
@@ -286,7 +282,7 @@ bool XModem::read_block_buffered(struct packet *p, byte *buffer) {
     p->id[i] = buffer[b_pos++];
     //Because of C integer promotion rules the ~ operator changes
     //the variable type of an unsigned char (byte) to a char so we need to
-    //cast it back
+    //cast it back, lol
     if(p->id[i] != (byte) ~buffer[b_pos++]) return false;
   }
 
@@ -294,8 +290,8 @@ bool XModem::read_block_buffered(struct packet *p, byte *buffer) {
     p->data[i] = buffer[b_pos++];
   }
 
-  calc_chksum(p->data, _data_bytes, p->chksum);
-  for(size_t i = 0; i < _chksum_bytes; ++i) {
+  calc_chksum(p->data, _data_bytes, p->chksum); // rx 2 call
+  for(size_t i = 0; i < _chksum_bytes; ++i) {// compara el buffer amb p->chksum[i]. rx
     if(p->chksum[i] != buffer[b_pos++]) return false;
   }
 
@@ -316,8 +312,8 @@ bool XModem::read_block_unbuffered(struct packet *p) {
 
   if(!fill_buffer(p->data, _data_bytes)) return false;
 
-  calc_chksum(p->data, _data_bytes, p->chksum);
-  for(size_t i = 0; i < _chksum_bytes; ++i) {
+  calc_chksum(p->data, _data_bytes, p->chksum); // rx calc unbuffered
+  for(size_t i = 0; i < _chksum_bytes; ++i) {// compara els bytes que va rebent amb p->chksum[i]
     if(!_serial->readBytes(&tmp, 1)) return false;
     if(p->chksum[i] != tmp) return false;
   }
@@ -378,12 +374,14 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
 
   return true;
 }
-
+/**
+ * tx call
+*/
 void XModem::build_packet(struct packet *p, byte *id, byte *data, size_t data_len) {
   memcpy(p->id, id, _id_bytes);
   if(data == NULL) block_lookup(id, _id_bytes, p->data, data_len);
   else memcpy(p->data, data, data_len);
-  calc_chksum(p->data, _data_bytes, p->chksum);
+  calc_chksum(p->data, _data_bytes, p->chksum); // tx calc
 }
 
 bool XModem::send_packet(struct packet *p) {
@@ -480,7 +478,7 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
 }
 
 // DEFAULT HANDLERS static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
-bool XModem::dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
+bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
   // aqui call fe rel callback;
   
   if (myXModem._onXmodemReceiveHandler) {
@@ -501,12 +499,35 @@ void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
 }
 
  void XModem::crc_16_chksum(byte *data, size_t dataSize, byte *chksum) {
+  // s'envia p->chksum
   //XModem CRC prime number is 69665 -> 2^16 + 2^12 + 2^5 + 2^0 -> 10001000000100001 -> 0x11021
   //normal notation of this bit pattern omits the leading bit and represents it as 0x1021
   //in code we can omit the 2^16 term due to shifting before XORing when the MSB is a 1
-  const unsigned short crc_prime = 0x1021;
-  unsigned short *crc = (unsigned short *) chksum;
-  *crc = 0;
+  unsigned short crc = 0xFFFF; // Initial value
+  unsigned polynomial = 0xA001; // CRC-16 polynomial
+  for(size_t i = 0; i < dataSize; ++i) {
+      crc ^= data[i];
+
+        for (int i = 0; i < 8; i++)
+        {
+            if ((crc & 0x0001) == 0x0001)
+            {
+                crc >>= 1;
+                crc ^= polynomial;
+            }
+            else
+            {
+                crc >>= 1;
+            }
+        }
+    }
+  
+
+/*
+  //------------------------------------
+  //const unsigned short crc_prime = 0x1021;
+  //unsigned short *crc = (unsigned short *) chksum;
+  //*crc = 0;// unhandled_user_irq_num_in_r0 --> https://forums.raspberrypi.com/viewtopic.php?t=320355
 
   //We can ignore crc calulations that cross byte boundaries by just assuming
   //that the following byte is 0 and then fixup our simplification at the end
@@ -519,6 +540,8 @@ void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
       else *crc <<= 1;
     }
   }
+  // aqui crc ha quedat establert
+  */
 }
 
 void XModem::onXmodemReceive(bool(*callback)(byte *data, size_t dataSize))

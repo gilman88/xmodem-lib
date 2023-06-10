@@ -16,5 +16,5 @@ static const char text[] = "Lorem ipsum dolor sit amet, consectetur adipiscing e
 
 void loop() {
   //This simple example continuously tries to send data
-  myXModem.send(reinterpret_cast<byte*>(const_cast<char*>(text)), strlen(text));
+  myXModem.send(text, strlen(text));
 }
