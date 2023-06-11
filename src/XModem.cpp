@@ -2,7 +2,7 @@
 #include "XModem.h"
 
 XModem::XModem(){
-  myXModem._onXmodemReceiveHandler = nullptr;
+
 }
 
 void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
@@ -88,13 +88,13 @@ bool XModem::lookup_send(unsigned long long id) {
   return send((uint8_t*) NULL, 0, id);
 }
 
-bool XModem::send(byte *data, size_t data_len, unsigned long long start_id) {
-  byte *id = (byte *) malloc(_id_bytes);
+bool XModem::send(uint8_t *data, size_t data_len, unsigned long long start_id) {
+  uint8_t *id = (uint8_t *) malloc(_id_bytes);
 
   //convert the start_id to big endian format
   unsigned long long temp = start_id;
   for(size_t i = 0; i < _id_bytes; ++i) {
-    id[_id_bytes-i-1] = (byte) (temp & 0xFF);
+    id[_id_bytes-i-1] = (uint8_t) (temp & 0xFF);
     temp >>=8;
   }
 
@@ -248,6 +248,7 @@ bool XModem::rx() {
         if(response == EOT) {
           _serial->write(ACK);
           result = true;
+          // * to handle end of file receiving here
           break;
         }
       }
@@ -480,10 +481,12 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
 // DEFAULT HANDLERS static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
   // aqui call fe rel callback;
-  
-  if (myXModem._onXmodemReceiveHandler) {
-      myXModem._onXmodemReceiveHandler(data,dataSize);
-  }
+  Serial2.println(*blk_id);
+  Serial2.println(idSize);
+  Serial2.write(data,dataSize);
+  Serial2.println(dataSize);
+  Serial2.println("----------");
+  // * to handle receive chunk of file here
   
   return true;
 }
@@ -542,12 +545,6 @@ void XModem::basic_chksum(byte *data, size_t dataSize, byte *chksum) {
   }
   // aqui crc ha quedat establert
   */
-}
-
-void XModem::onXmodemReceive(bool(*callback)(byte *data, size_t dataSize))
-{
-  _onXmodemReceiveHandler = callback;
-  //_instance = this;
 }
 // ho has de cridar  atrave´s del extern
 XModem myXModem;

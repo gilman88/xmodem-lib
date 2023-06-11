@@ -5,6 +5,8 @@
  * https://www.menie.org/georges/embedded/xmodem_specification.html
  * http://wiki.synchro.net/ref:xmodem
  * http://pauillac.inria.fr/~doligez/zmodem/ymodem.txt
+ * 
+ * TO-DO <--- ----> search (* to handle) at XModem.cpp, i've gotta go!
  */
 #ifndef XModem_h
 #define XModem_h
@@ -42,9 +44,8 @@ class XModem {
     bool send(byte data[], size_t data_len, unsigned long long start_id);
     bool lookup_send(unsigned long long id);
 
-    typedef bool (*XmodemReceiveHandler)( byte *data, size_t dataSize);
-    void onXmodemReceive(XmodemReceiveHandler handler);
-    XmodemReceiveHandler _onXmodemReceiveHandler;
+    void onXmodemReceive(bool(*callback)(byte *data, size_t dataSize));
+    bool(*_onXmodemReceiveHandler)(byte *data, size_t dataSize) ;
     
     struct bulk_data {
       byte **data_arr;
