@@ -7,20 +7,19 @@ XModem::XModem(){
 
 void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _serial = &serial;
+  _protocol = type;
   switch(type) {
     case ProtocolType::XMODEM:
       _id_bytes = 1;
       _chksum_bytes = 1;
       _data_bytes = 128;
       _rx_init_byte = NAK;
-      calc_chksum = XModem::basic_chksum;
       break;
     case ProtocolType::CRC_XMODEM:
       _id_bytes = 1;
       _chksum_bytes = 2;
       _data_bytes = 128;
       _rx_init_byte = 'C';
-      calc_chksum = XModem::crc_16_chksum;
       break;
   }
   retry_limit = 10;
@@ -28,7 +27,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _allow_nonsequential = false;
   _buffer_packet_reads = true;
   //process_rx_block = XModem::dummy_rx_block_handler;
-  block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
+  //block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 }
 
 // SETTERS
@@ -64,15 +63,55 @@ void XModem::bufferPacketReads(bool b) {
   _buffer_packet_reads = b;
 }
 
-void XModem::setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize)) {
-  block_lookup = handler;
+bool XModem::pathAssert(const char * path){// no pot començar amb / not start /
+
+  // Ensure the SPI pinout the SD card is connected to is configured properly
+  if (!SD.begin(microSD_CS_PIN)) {
+    Serial2.println("initialization failed!");
+    return false;
+  }
+  
+  String build;
+  String stringPath(path);
+  
+  if(stringPath.length() < 3)return false;// might change, no allow 2 char folder
+  if(path[0] == '/')return false;
+
+  int pos = stringPath.indexOf('/');
+  while (pos > 0 ) {
+    build = stringPath.substring(0,pos);
+    if (!SD.exists(build.c_str())) {// <------ mkdir
+      if (!SD.mkdir(build.c_str())) {
+        //Serial.println("F");
+        return false;
+        }
+    }
+
+      pos = stringPath.indexOf('/',pos+1);
+  }
+  
+  if (!SD.exists(path)) {// <------ mkdir
+      if (!SD.mkdir(path)) {
+        //Serial.println("F");
+        return false;
+        }
+    }
+
+  SD.end(false);
+  return true;
+}
+bool XModem::receiveFile(String filePath){
+  int lastSeparatorIndex = filePath.lastIndexOf('/');
+  String tmp = filePath.substring(0, lastSeparatorIndex + 1);
+  this->pathAssert(tmp.c_str());
+  
+  if(!openFiles(filePath.c_str(), true)){
+      return false;
+  }
+
+  return this->receive();
 }
 
-void XModem::setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum)) {
-  calc_chksum = handler;
-}
-
-// PUBLIC METHODS
 bool XModem::receive() {
   if(!init_rx() || !rx()) {
     //An unrecoverable error occured send cancels to terminate the transaction
@@ -143,11 +182,35 @@ bool XModem::send_bulk_data(struct bulk_data container) {
   free(buffer);
   return result;
 }
-
+void XModem::calc_chksum (byte *data, size_t dataSize, byte *chksum){
+  if(_protocol == ProtocolType::XMODEM){
+    basic_chksum(data,dataSize,chksum);
+  }else{
+    crc_16_chksum(data,dataSize,chksum);
+  }
+}
 bool XModem::send(byte *data, size_t data_len) {
   return send(data, data_len, 1);
 }
-
+bool XModem::openFiles(const char * filePath, bool write){
+  if (!SD.begin(microSD_CS_PIN)) {// change CS here
+        return false;
+    }
+    if(SD.exists(filePath)){
+      SD.remove(filePath);
+    }
+    if(write){
+        workingFile = SD.open(filePath, FILE_WRITE);
+    }else{
+        workingFile = SD.open(filePath, FILE_READ);
+    }
+    
+    return true;
+}
+void XModem::closeFiles(bool success){
+    workingFile.close();
+    SD.end(false);
+}
 // INTERNAL RECEIVE METHODS
 bool XModem::init_rx() {
   byte i = 0;
@@ -248,6 +311,7 @@ bool XModem::rx() {
         if(response == EOT) {
           _serial->write(ACK);
           result = true;
+          closeFiles(true);
           // * to handle end of file receiving here
           break;
         }
@@ -263,6 +327,7 @@ bool XModem::rx() {
   }
 
   free(buffer);
+  closeFiles(false);
   return result;
 }
 
@@ -380,7 +445,7 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
 */
 void XModem::build_packet(struct packet *p, byte *id, byte *data, size_t data_len) {
   memcpy(p->id, id, _id_bytes);
-  if(data == NULL) block_lookup(id, _id_bytes, p->data, data_len);
+  if(data == NULL) dummy_block_lookup(id, _id_bytes, p->data, data_len);
   else memcpy(p->data, data, data_len);
   calc_chksum(p->data, _data_bytes, p->chksum); // tx calc
 }
@@ -478,14 +543,9 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
   return false;
 }
 
-// DEFAULT HANDLERS static bool dummy_rx_block_handler(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
-  // aqui call fe rel callback;
-  Serial2.println(*blk_id);
-  Serial2.println(idSize);
-  Serial2.write(data,dataSize);
-  Serial2.println(dataSize);
-  Serial2.println("----------");
+  this->workingFile.write(data,dataSize);
+  
   // * to handle receive chunk of file here
   
   return true;

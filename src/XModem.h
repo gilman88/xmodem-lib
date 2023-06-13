@@ -11,7 +11,10 @@
 #ifndef XModem_h
 #define XModem_h
 #include "Arduino.h"
-
+#include <SD.h>
+#ifndef microSD_CS_PIN
+   #define microSD_CS_PIN 17
+#endif
 //XModem constants
 #define SOH (byte) 0x01 //Start of Header
 #define EOT (byte) 0x04 //End of Transmission
@@ -39,7 +42,8 @@ class XModem {
     void bufferPacketReads(bool b);
     void setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize));
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
-    bool receive();
+    bool pathAssert(const char * path);
+    bool receiveFile(String filePath);
     bool send(byte data[], size_t data_len);
     bool send(byte data[], size_t data_len, unsigned long long start_id);
     bool lookup_send(unsigned long long id);
@@ -57,6 +61,8 @@ class XModem {
     bool send_bulk_data(struct bulk_data container);
 
   private:
+    ProtocolType _protocol;
+    File workingFile;
     HardwareSerial *_serial;
     byte _rx_init_byte;
     size_t _id_bytes;
@@ -66,14 +72,12 @@ class XModem {
     unsigned long _signal_retry_delay_ms;
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
-    //bool (*process_rx_block) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
-    void (*block_lookup) (void *blk_id, size_t id_bytes, byte *data, size_t dataSize);
-    void (*calc_chksum) (byte *data, size_t dataSize, byte *chksum);
 
-    static bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
-    static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
-    static void basic_chksum(byte *data, size_t dataSize, byte *chksum);
-    static void crc_16_chksum(byte *data, size_t dataSize, byte *chksum);
+    void calc_chksum (byte *data, size_t dataSize, byte *chksum);
+    bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
+    void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
+    void basic_chksum(byte *data, size_t dataSize, byte *chksum);
+    void crc_16_chksum(byte *data, size_t dataSize, byte *chksum);
 
     struct packet {
       byte *id;
@@ -82,6 +86,10 @@ class XModem {
       unsigned short crc;
     };
 
+    bool openFiles(const char * filePath, bool write);
+    void closeFiles(bool success);
+
+    bool receive();
     bool init_rx();
     bool find_header();
     bool rx();
