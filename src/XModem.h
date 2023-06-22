@@ -60,6 +60,8 @@ class XModem {
 
     bool send_bulk_data(struct bulk_data container);
 
+  unsigned int totalDebug = 0;
+  
   private:
     ProtocolType _protocol;
     File workingFile;

@@ -24,7 +24,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   }
   retry_limit = 10;
   _signal_retry_delay_ms = 100;
-  _allow_nonsequential = false;
+  _allow_nonsequential = true;// to-do canviat
   _buffer_packet_reads = true;
   //process_rx_block = XModem::dummy_rx_block_handler;
   //block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
@@ -246,6 +246,7 @@ bool XModem::rx() {
     //5 id blocks - prev_blk_id, expected_id, packet struct, buffer id and buffer compl_id
     //2 chksum block - packet struct and buffer chksum
     //2 data block - packet struct and buffer data
+    
     buffer = (byte *) malloc(5*_id_bytes + 2*_chksum_bytes + 2*_data_bytes);
 
     prev_blk_id = buffer + 2*_id_bytes + _chksum_bytes + _data_bytes;
@@ -289,17 +290,31 @@ bool XModem::rx() {
             if(expected_id[i] == p.id[i]) ++matches;
           }
 
-          if(matches != _id_bytes) break;
+          if(matches != _id_bytes) {
+            //Serial2.println("$");
+            break;
+            }
         }
 
         size_t padding_bytes = 0;
         //count number of padding SUB bytes
-        while(p.data[_data_bytes - 1 - padding_bytes] == SUB) ++padding_bytes;
+        while(p.data[_data_bytes - 1 - padding_bytes] == SUB){
+           
+           ++padding_bytes;
+           
+            Serial2.println(padding_bytes);
+            Serial2.println('-');
+  
+        }
 
-        //process packet
+        // process packet, text mode
+        //if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
+        // process packet, binary mode
         if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
 
         for(size_t i = 0; i < _id_bytes; ++i) prev_blk_id[i] = expected_id[i];
+      }else{
+        //Serial2.println("%");
       }
 
       //signal acknowledgment
@@ -319,10 +334,20 @@ bool XModem::rx() {
       // Unexpected response and resync attempt failed so fail out
       if(response != SOH && !find_header()) break;
     } else {
-      if(++errors > retry_limit) break;
+      Serial2.println("errA");
+      if(++errors > retry_limit) {
+        Serial2.println("errB");
+        break;// packet error
+      }
       byte response = tx_signal(NAK);
-      if(response == CAN) break;
-      if(response != SOH && !find_header()) break;
+      if(response == CAN) {
+        Serial2.println("errC");
+        break;
+      }
+      if(response != SOH && !find_header()) {
+        Serial2.println("errD");
+        break;
+        }
     }
   }
 
@@ -543,11 +568,51 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
   return false;
 }
 
+/** how do i hate buffering
+ * https://github.com/arduino-libraries/SD/blob/85dbcca432d1b658d0d848f5f7ba0a9e811afc04/examples/NonBlockingWrite/NonBlockingWrite.ino
+*/
 bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
-  this->workingFile.write(data,dataSize);
   
-  // * to handle receive chunk of file here
+  String dataBuffer(data,dataSize);
+  workingFile.print(dataBuffer);
+  totalDebug+= dataSize;
+/*  dataBuffer.reserve(dataSize);
+  //memcpy(dataBuffer.,data,dataSize);
+
+  Serial.println(dataSize);
+  unsigned int chunkSize = workingFile.availableForWrite();// max chunk seems to be 512
+  if (chunkSize < dataSize){
+    unsigned int chunkDone = 0;// tros fet
+    unsigned int actualChunk = chunkSize;
+    while(chunkDone < dataSize){
+      //Serial2.println(actualChunk);
+      workingFile.write(dataBuffer.c_str(), actualChunk);// desa tots els que pot
+      chunkSize = workingFile.availableForWrite();
+      workingFile.flush();
+      dataBuffer.remove(0, chunkSize);// borra els ja escrits
+      
+      chunkDone += chunkSize;
+      chunkSize = workingFile.availableForWrite();
+      //si pots esciure més del que tens
+      if(chunkSize > (dataSize-chunkDone)){
+        actualChunk = dataSize-chunkDone; // el tros a escriure 
+      }else{// si pots escriure menys del que tens
+        actualChunk = chunkSize;
+      }
+      if(actualChunk == 0){
+        closeFiles(true);
+        openFiles(workingFile.name(),true);
+      }
+      delay(10);
+    }
+    Serial2.println('-');
+  }else{
+    Serial2.write('+');
+    workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
+    workingFile.flush();
+  }
   
+  */
   return true;
 }
 
