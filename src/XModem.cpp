@@ -100,7 +100,12 @@ bool XModem::pathAssert(const char * path){// no pot començar amb / not start /
   SD.end(false);
   return true;
 }
-bool XModem::receiveFile(String filePath){
+/**
+ * Improved to archieve ymodem like quality knowing the file size
+*/
+bool XModem::receiveFile(String filePath,unsigned int size, bool binary){
+  this->sizeKnown = size;
+  this->binary = binary;
   int lastSeparatorIndex = filePath.lastIndexOf('/');
   String tmp = filePath.substring(0, lastSeparatorIndex + 1);
   this->pathAssert(tmp.c_str());
@@ -234,7 +239,7 @@ bool XModem::find_header() {
 */
 bool XModem::rx() {
   bool result = false;
-
+  sizeReceived = 0;
   byte *buffer;
   byte *prev_blk_id;
   byte * expected_id;
@@ -296,21 +301,24 @@ bool XModem::rx() {
             }
         }
 
-        size_t padding_bytes = 0;
-        //count number of padding SUB bytes
-        while(p.data[_data_bytes - 1 - padding_bytes] == SUB){
-           
-           ++padding_bytes;
-           
-            Serial2.println(padding_bytes);
-            Serial2.println('-');
-  
+        
+        if(binary){
+          if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes)) break;
+        }else{
+          size_t padding_bytes = 0;
+          //count number of padding SUB bytes
+          while(p.data[_data_bytes - 1 - padding_bytes] == SUB){
+            
+            ++padding_bytes;
+            
+              Serial2.println(padding_bytes);
+              Serial2.println('-');
+    
+          }
+          if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
         }
-
-        // process packet, text mode
-        //if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
+        
         // process packet, binary mode
-        if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
 
         for(size_t i = 0; i < _id_bytes; ++i) prev_blk_id[i] = expected_id[i];
       }else{
@@ -572,47 +580,28 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
  * https://github.com/arduino-libraries/SD/blob/85dbcca432d1b658d0d848f5f7ba0a9e811afc04/examples/NonBlockingWrite/NonBlockingWrite.ino
 */
 bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
-  
-  String dataBuffer(data,dataSize);
+  /*String dataBuffer(data,dataSize);
   workingFile.print(dataBuffer);
   totalDebug+= dataSize;
-/*  dataBuffer.reserve(dataSize);
-  //memcpy(dataBuffer.,data,dataSize);
+  */
 
-  Serial.println(dataSize);
-  unsigned int chunkSize = workingFile.availableForWrite();// max chunk seems to be 512
-  if (chunkSize < dataSize){
-    unsigned int chunkDone = 0;// tros fet
-    unsigned int actualChunk = chunkSize;
-    while(chunkDone < dataSize){
-      //Serial2.println(actualChunk);
-      workingFile.write(dataBuffer.c_str(), actualChunk);// desa tots els que pot
-      chunkSize = workingFile.availableForWrite();
+  if(binary){
+    sizeReceived += dataSize;
+    if(sizeReceived > sizeKnown){
+      if((sizeReceived-sizeKnown) > dataSize){// if sizeKnown is wrong, not correct
+        return false;
+      }
+      workingFile.write(data,(sizeReceived-sizeKnown));// has d'escriure el tros que ell diu
       workingFile.flush();
-      dataBuffer.remove(0, chunkSize);// borra els ja escrits
-      
-      chunkDone += chunkSize;
-      chunkSize = workingFile.availableForWrite();
-      //si pots esciure més del que tens
-      if(chunkSize > (dataSize-chunkDone)){
-        actualChunk = dataSize-chunkDone; // el tros a escriure 
-      }else{// si pots escriure menys del que tens
-        actualChunk = chunkSize;
-      }
-      if(actualChunk == 0){
-        closeFiles(true);
-        openFiles(workingFile.name(),true);
-      }
-      delay(10);
+    }else{
+      workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
+      workingFile.flush();
     }
-    Serial2.println('-');
   }else{
-    Serial2.write('+');
     workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
     workingFile.flush();
   }
-  
-  */
+
   return true;
 }
 

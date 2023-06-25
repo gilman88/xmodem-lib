@@ -43,7 +43,7 @@ class XModem {
     void setBlockLookupHandler(void (*handler) (void *blk_id, size_t idSize, byte *send_data, size_t dataSize));
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
     bool pathAssert(const char * path);
-    bool receiveFile(String filePath);
+    bool receiveFile(String filePath,unsigned int size=-1, bool binary=false);
     bool send(byte data[], size_t data_len);
     bool send(byte data[], size_t data_len, unsigned long long start_id);
     bool lookup_send(unsigned long long id);
@@ -74,7 +74,9 @@ class XModem {
     unsigned long _signal_retry_delay_ms;
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
-
+    unsigned int sizeKnown=-1;
+    unsigned int sizeReceived=-1;
+    bool binary = false;
     void calc_chksum (byte *data, size_t dataSize, byte *chksum);
     bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
     void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
