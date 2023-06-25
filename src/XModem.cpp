@@ -302,9 +302,9 @@ bool XModem::rx() {
         }
 
         
-        if(binary){
+        if(binary){// process packet, binary mode
           if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes)) break;
-        }else{
+        }else{// process packet, text mode
           size_t padding_bytes = 0;
           //count number of padding SUB bytes
           while(p.data[_data_bytes - 1 - padding_bytes] == SUB){
@@ -318,7 +318,7 @@ bool XModem::rx() {
           if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
         }
         
-        // process packet, binary mode
+        
 
         for(size_t i = 0; i < _id_bytes; ++i) prev_blk_id[i] = expected_id[i];
       }else{
@@ -591,7 +591,7 @@ bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, siz
       if((sizeReceived-sizeKnown) > dataSize){// if sizeKnown is wrong, not correct
         return false;
       }
-      workingFile.write(data,(sizeReceived-sizeKnown));// has d'escriure el tros que ell diu
+      workingFile.write(data,(sizeKnown -(sizeReceived -dataSize)));// has d'escriure el tros que ell diu
       workingFile.flush();
     }else{
       workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
