@@ -44,8 +44,8 @@ class XModem {
     void setChksumHandler(void (*handler) (byte *data, size_t dataSize, byte *chksum));
     bool pathAssert(const char * path);
     bool receiveFile(String filePath,unsigned int size=-1, bool binary=false);
-    bool send(byte data[], size_t data_len);
-    bool send(byte data[], size_t data_len, unsigned long long start_id);
+    bool send(byte data[], size_t data_len, unsigned long start_id= 1);
+    bool sendFile(String filePath);
     bool lookup_send(unsigned long long id);
 
     void onXmodemReceive(bool(*callback)(byte *data, size_t dataSize));
@@ -58,7 +58,7 @@ class XModem {
       size_t count;
     };
 
-    bool send_bulk_data(struct bulk_data container);
+    bool send_bulk_data(struct bulk_data container,bool file = false);
 
   unsigned int totalDebug = 0;
   
@@ -104,6 +104,7 @@ class XModem {
 
     bool init_tx();
     bool tx(struct packet *p, byte *data, size_t data_len, byte *blk_id);
+    bool txFile(struct packet *p,byte *blk_id);
     void build_packet(struct packet *p, byte *id, byte *data, size_t data_len);
     bool send_packet(struct packet *p);
     bool close_tx();

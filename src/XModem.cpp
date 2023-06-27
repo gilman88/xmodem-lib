@@ -129,8 +129,36 @@ bool XModem::receive() {
 bool XModem::lookup_send(unsigned long long id) {
   return send((uint8_t*) NULL, 0, id);
 }
+bool XModem::sendFile(String filePath){
+  if(!openFiles(filePath.c_str(), false)){
+      return false;
+  }
+  if(!workingFile){
+    return false;
+  }else{
+    Serial2.println(workingFile.size());
+  }
+  uint8_t *id = (uint8_t *) malloc(_id_bytes);
+  //convert the start_id to big endian format
+  unsigned long long temp = 1;
+  for(size_t i = 0; i < _id_bytes; ++i) {
+    id[_id_bytes-i-1] = (uint8_t) (temp & 0xFF);
+    temp >>=8;
+  }
 
-bool XModem::send(uint8_t *data, size_t data_len, unsigned long long start_id) {
+  struct bulk_data container;
+  /*container.data_arr = &data;
+  container.len_arr = &data_len;*/
+  container.id_arr = id;
+  container.count = 1;
+
+  bool result = send_bulk_data(container,true);
+  free(id);
+  closeFiles(true);
+
+  return result;
+}
+bool XModem::send(uint8_t *data, size_t data_len, unsigned long start_id) {
   uint8_t *id = (uint8_t *) malloc(_id_bytes);
 
   //convert the start_id to big endian format
@@ -151,7 +179,7 @@ bool XModem::send(uint8_t *data, size_t data_len, unsigned long long start_id) {
   return result;
 }
 
-bool XModem::send_bulk_data(struct bulk_data container) {
+bool XModem::send_bulk_data(struct bulk_data container,bool file) {
   if(container.count == 0) return false;
 
   struct packet p;
@@ -168,9 +196,16 @@ bool XModem::send_bulk_data(struct bulk_data container) {
   p.data = buffer;
 
   bool result = init_tx();
-  for(size_t j = 0; result && j < container.count; ++j) {
-    for(size_t i = 0; i < _id_bytes; ++i) blk_id[i] = container.id_arr[j*_id_bytes + i];
-    result &= tx(&p, container.data_arr[j], container.len_arr[j], blk_id);
+  if(file){
+    for(size_t j = 0; result && j < container.count; ++j) {// packet sending
+      for(size_t i = 0; i < _id_bytes; ++i) blk_id[i] = container.id_arr[j*_id_bytes + i];// j = packetId, 
+      result &= txFile(&p,blk_id);
+    }
+  }else{
+    for(size_t j = 0; result && j < container.count; ++j) {// packet sending
+      for(size_t i = 0; i < _id_bytes; ++i) blk_id[i] = container.id_arr[j*_id_bytes + i];// j = packetId, 
+      result &= tx(&p, container.data_arr[j], container.len_arr[j], blk_id);// gfb, aqui ha d'anar l'arxiu
+    }
   }
 
   if(result) {
@@ -192,20 +227,21 @@ void XModem::calc_chksum (byte *data, size_t dataSize, byte *chksum){
     crc_16_chksum(data,dataSize,chksum);
   }
 }
-bool XModem::send(byte *data, size_t data_len) {
+/*bool XModem::send(byte *data, size_t data_len) {
   return send(data, data_len, 1);
-}
+}*/
 bool XModem::openFiles(const char * filePath, bool write){
   if (!SD.begin(microSD_CS_PIN)) {// change CS here
         return false;
     }
-    if(SD.exists(filePath)){
-      SD.remove(filePath);
-    }
     if(write){
-        workingFile = SD.open(filePath, FILE_WRITE);
+      workingFile = SD.open(filePath, FILE_WRITE);
+      if(SD.exists(filePath)){
+        SD.remove(filePath);
+      }
     }else{
         workingFile = SD.open(filePath, FILE_READ);
+        workingFile.seek(0);
     }
     
     return true;
@@ -446,6 +482,7 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
   byte *data_ptr = data;
   byte *data_end = data_ptr + data_len;
 
+
   //flush incoming data before starting
   while(_serial->available()) _serial->read();
 
@@ -467,6 +504,26 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
 
     build_packet(p, blk_id, data_ptr, data_end - data_ptr);
     if(!send_packet(p)) return false;
+  }
+
+  return true;
+}
+bool XModem::txFile(struct packet *p,byte *blk_id) {
+  String fgh = "fghjk";
+  //flush incoming data before starting
+  while(_serial->available()) _serial->read();
+  int aa = workingFile.available();
+  while (aa > 0) {
+    size_t bytesRead = workingFile.read(p->data, _data_bytes);
+    if(bytesRead < _data_bytes){
+      for (int i = _data_bytes - (_data_bytes - bytesRead); i < _data_bytes; i++) {
+        p->data[i] = 0x1A;
+      }
+    }
+    build_packet(p, blk_id, p->data, _data_bytes);
+    increment_id(blk_id, _id_bytes);
+    if(!send_packet(p)) return false;
+    aa = workingFile.available();
   }
 
   return true;
@@ -590,15 +647,13 @@ bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, siz
         return false;
       }
       workingFile.write(data,(sizeKnown -(sizeReceived -dataSize)));// has d'escriure el tros que ell diu
-      workingFile.flush();
     }else{
       workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
-      workingFile.flush();
     }
   }else{
     workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
-    workingFile.flush();
   }
+  workingFile.flush();
 
   return true;
 }
