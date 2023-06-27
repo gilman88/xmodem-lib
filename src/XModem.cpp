@@ -24,10 +24,8 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   }
   retry_limit = 10;
   _signal_retry_delay_ms = 100;
-  _allow_nonsequential = true;// to-do canviat
+  _allow_nonsequential = false;
   _buffer_packet_reads = true;
-  //process_rx_block = XModem::dummy_rx_block_handler;
-  //block_lookup = XModem::dummy_block_lookup;//   static void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 }
 
 // SETTERS
