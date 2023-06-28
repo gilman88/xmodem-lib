@@ -235,10 +235,10 @@ bool XModem::openFiles(const char * filePath, bool write){
         return false;
     }
     if(write){
-      workingFile = SD.open(filePath, FILE_WRITE);
       if(SD.exists(filePath)){
         SD.remove(filePath);
       }
+      workingFile = SD.open(filePath, FILE_WRITE);
     }else{
         workingFile = SD.open(filePath, FILE_READ);
         workingFile.seek(0);

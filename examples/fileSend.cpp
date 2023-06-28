@@ -4,7 +4,9 @@
 #include <Arduino.h>
 #include <XModem.h>
 
-/*
+/**
+ * Working on rp2040, platform.io https://github.com/earlephilhower/platform-raspberrypi ; || https://github.com/maxgerhardt/platform-raspberrypi.git
+ * 
  * Serial1 is XModem 9600
  * Serial2 is Console prompt 57600
  * 
