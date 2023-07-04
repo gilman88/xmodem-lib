@@ -75,7 +75,8 @@ void resetFunc (){
 bool getMessageFromXmodem(uint8_t code,uint8_t val){
   
   switch(code) {
-    case 0:
+    case 0:// val = packetId
+      /** use myXModem.sizeKnown for progress bar */
       Serial2.print(val);
       Serial2.write('\n');
       break;
@@ -112,8 +113,8 @@ void setup() {
   Serial2.flush();
   fileNameBuffer = Serial2.readStringUntil('\n');
   if(fileNameBuffer.length() ==0)resetFunc();
-  myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
   myXModem.onXmodemUpdate(&getMessageFromXmodem);
+  myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
 
   Serial2.println("Receiving to: "+fileNameBuffer);
   Serial2.println("File size?");

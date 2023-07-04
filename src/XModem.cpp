@@ -7,7 +7,8 @@ XModem::XModem(){
 void XModem::onXmodemUpdate(bool(*callback)(uint8_t code, uint8_t value)){
   _onXmodemUpdateHandler = callback;
 }
-void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
+bool XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
+  if (this->_onXmodemUpdateHandler == nullptr)return false;
   _serial = &serial;
   _protocol = type;
   switch(type) {
@@ -28,6 +29,7 @@ void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _signal_retry_delay_ms = 100;
   _allow_nonsequential = false;
   _buffer_packet_reads = true;
+  return true;
 }
 
 // SETTERS
@@ -140,7 +142,7 @@ bool XModem::sendFile(String filePath){
     this->_onXmodemUpdateHandler(1,2);/** file not found*/
     return false;
   }else{
-    Serial2.println(workingFile.size());
+    this->sizeKnown = workingFile.size();
   }
   uint8_t *id = (uint8_t *) malloc(_id_bytes);
   //convert the start_id to big endian format

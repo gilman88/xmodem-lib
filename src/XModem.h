@@ -31,7 +31,7 @@ class XModem {
     };
 
     XModem();
-    void begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::ProtocolType::XMODEM);
+    bool begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::ProtocolType::XMODEM);
     void setIdSize(size_t size);
     void setChecksumSize(size_t size);
     void setDataSize(size_t size);
@@ -50,8 +50,6 @@ class XModem {
 
     void onXmodemUpdate(bool(*callback)(uint8_t code, uint8_t value));
     
-    void onUpdate(void(*callback)(int));
-    
     struct bulk_data {
       byte **data_arr;
       size_t *len_arr;
@@ -59,7 +57,7 @@ class XModem {
       size_t count;
     };
 
-    bool send_bulk_data(struct bulk_data container,bool file = false);
+    unsigned int sizeKnown=-1;/** actual transfer file size*/
 
   private:
     ProtocolType _protocol;
@@ -73,11 +71,11 @@ class XModem {
     unsigned long _signal_retry_delay_ms;
     bool _allow_nonsequential;
     bool _buffer_packet_reads;
-    unsigned int sizeKnown=-1;
     unsigned int sizeReceived=-1;
     bool binary = false;
     bool(*_onXmodemUpdateHandler)(uint8_t code, uint8_t value) = nullptr;
     void calc_chksum (byte *data, size_t dataSize, byte *chksum);
+    bool send_bulk_data(struct bulk_data container,bool file = false);
     bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
     void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);
     void basic_chksum(byte *data, size_t dataSize, byte *chksum);

@@ -75,7 +75,8 @@ void resetFunc (){
 bool getMessageFromXmodem(uint8_t code,uint8_t val){
   
   switch(code) {
-    case 0:
+    case 0:// val = packetId
+      /** use myXModem.sizeKnown for progress bar */
       Serial2.print(val);
       Serial2.write('\n');
       break;
@@ -115,12 +116,12 @@ void setup() {
   
   Serial2.println("read from: "+fileNameBuffer);
   Serial2.flush();
-  myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
   myXModem.onXmodemUpdate(&getMessageFromXmodem);
+  myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
   Serial2.println("lets go!");
 }
 
 void loop() {
-  myXModem.sendFile(fileNameBuffer);
+  Serial2.println(myXModem.sendFile(fileNameBuffer));
   resetFunc();
 }
