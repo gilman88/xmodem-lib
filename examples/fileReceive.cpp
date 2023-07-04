@@ -6,7 +6,7 @@
 
 /**
  * Working on rp2040, platform.io https://github.com/earlephilhower/platform-raspberrypi ; || https://github.com/maxgerhardt/platform-raspberrypi.git
- * 
+ * XModem send example
  * Serial1 is XModem 9600
  * Serial2 is Console prompt 57600
  * 
@@ -17,6 +17,9 @@
 String fileNameBuffer;
 
 File root;
+
+unsigned int fileSize;
+
 void printDirectory(File dir, int numTabs) {
   while (true) {
 
@@ -47,11 +50,8 @@ void printDirectory(File dir, int numTabs) {
   }
 }
 void printSd(){
-// Open serial communications and wait for port to open:
-  //PIPManager::pathAssert("user12/key13");
   Serial2.print("Initializing SD card...");
 
-  // Ensure the SPI pinout the SD card is connected to is configured properly
   if (!SD.begin(microSD_CS_PIN)) {
     Serial2.println("initialization failed!");
     return;
@@ -63,16 +63,42 @@ void printSd(){
   printDirectory(root, 0);
 
   Serial2.println("done!");
+
   SD.end(false);
-  //dwhile (!Serial2.available()){}
 }
 void resetFunc (){
   Serial2.println("reset");
   delay(50000);
-watchdog_enable(1, 1);
-    while(1);
+  watchdog_enable(1, 1);
+  while(1);
 }
-unsigned int fileSize;
+bool getMessageFromXmodem(uint8_t code,uint8_t val){
+  
+  switch(code) {
+    case 0:
+      Serial2.print(val);
+      Serial2.write('\n');
+      break;
+    case 1:
+      if(val==1){
+        Serial2.println("Delete file? y/n");
+        while(Serial2.available() ==0){}
+        char keyPressed = Serial2.read();
+        if(keyPressed != 'y')return false;
+        
+      }else if(val==2){
+        Serial2.println("File not found");
+      }
+      break;
+    case 2:
+      Serial2.println("SD card problem");
+      break;
+    default:
+      return true;
+  }
+  
+  return true;
+}
 void setup() {
   
   SPI.begin();
@@ -87,6 +113,8 @@ void setup() {
   fileNameBuffer = Serial2.readStringUntil('\n');
   if(fileNameBuffer.length() ==0)resetFunc();
   myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
+  myXModem.onXmodemUpdate(&getMessageFromXmodem);
+
   Serial2.println("Receiving to: "+fileNameBuffer);
   Serial2.println("File size?");
   Serial2.flush();
@@ -96,10 +124,7 @@ void setup() {
   Serial2.println("lets go!");
 }
 void loop() {
-  //This simple example continuously tries to read data
   Serial2.println(myXModem.receiveFile(fileNameBuffer,fileSize,true));
-  Serial2.println(myXModem.totalDebug);
-  
   resetFunc();
 }
 

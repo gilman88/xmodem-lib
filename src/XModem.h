@@ -48,8 +48,9 @@ class XModem {
     bool sendFile(String filePath);
     bool lookup_send(unsigned long long id);
 
-    void onXmodemReceive(bool(*callback)(byte *data, size_t dataSize));
-    bool(*_onXmodemReceiveHandler)(byte *data, size_t dataSize) ;
+    void onXmodemUpdate(bool(*callback)(uint8_t code, uint8_t value));
+    
+    void onUpdate(void(*callback)(int));
     
     struct bulk_data {
       byte **data_arr;
@@ -60,8 +61,6 @@ class XModem {
 
     bool send_bulk_data(struct bulk_data container,bool file = false);
 
-  unsigned int totalDebug = 0;
-  
   private:
     ProtocolType _protocol;
     File workingFile;
@@ -77,6 +76,7 @@ class XModem {
     unsigned int sizeKnown=-1;
     unsigned int sizeReceived=-1;
     bool binary = false;
+    bool(*_onXmodemUpdateHandler)(uint8_t code, uint8_t value) = nullptr;
     void calc_chksum (byte *data, size_t dataSize, byte *chksum);
     bool dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize);
     void dummy_block_lookup(void *blk_id, size_t idSize, byte *data, size_t dataSize);

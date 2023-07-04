@@ -6,7 +6,7 @@
 
 /**
  * Working on rp2040, platform.io https://github.com/earlephilhower/platform-raspberrypi ; || https://github.com/maxgerhardt/platform-raspberrypi.git
- * 
+ * XModem send file example
  * Serial1 is XModem 9600
  * Serial2 is Console prompt 57600
  * 
@@ -15,7 +15,7 @@
  */
 
 
-String fileNameBuffer = "opena.sh";
+String fileNameBuffer;
 
 File root;
 void printDirectory(File dir, int numTabs) {
@@ -67,21 +67,47 @@ void printSd(){
   SD.end(false);
 }
 void resetFunc (){
-  Serial2.println("reset");
-  delay(50000);
-watchdog_enable(1, 1);
-    while(1);
+  Serial2.println("reset in 5s");
+  delay(5000);
+  watchdog_enable(1, 1);
+  while(1);
 }
-
+bool getMessageFromXmodem(uint8_t code,uint8_t val){
+  
+  switch(code) {
+    case 0:
+      Serial2.print(val);
+      Serial2.write('\n');
+      break;
+    case 1:
+      if(val==1){
+        Serial2.println("Delete file? y/n");
+        while(Serial2.available() ==0){}
+        char keyPressed = Serial2.read();
+        if(keyPressed != 'y')return false;
+        
+      }else if(val==2){
+        Serial2.println("File not found");
+      }
+      break;
+    case 2:
+      Serial2.println("SD card problem");
+      break;
+    default:
+      return true;
+  }
+  
+  return true;
+}
 void setup() {
   SPI.begin();
   Serial1.begin(9600);
   Serial2.begin(57600);
-  Serial2.setTimeout(30000);
+  Serial2.setTimeout(-1);
   Serial2.println("boot Serial 2");
 
   printSd();
-  Serial2.println("File name?");
+  Serial2.println("Enter file to send name?");
   Serial2.flush();
 
   fileNameBuffer = Serial2.readStringUntil('\n');
@@ -90,11 +116,11 @@ void setup() {
   Serial2.println("read from: "+fileNameBuffer);
   Serial2.flush();
   myXModem.begin(Serial1, XModem::ProtocolType::XMODEM);
+  myXModem.onXmodemUpdate(&getMessageFromXmodem);
   Serial2.println("lets go!");
 }
 
 void loop() {
-  //This simple example continuously tries to send data
   myXModem.sendFile(fileNameBuffer);
   resetFunc();
 }

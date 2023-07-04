@@ -2,9 +2,11 @@
 #include "XModem.h"
 
 XModem::XModem(){
-
+  
 }
-
+void XModem::onXmodemUpdate(bool(*callback)(uint8_t code, uint8_t value)){
+  _onXmodemUpdateHandler = callback;
+}
 void XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
   _serial = &serial;
   _protocol = type;
@@ -131,9 +133,11 @@ bool XModem::lookup_send(unsigned long long id) {
 }
 bool XModem::sendFile(String filePath){
   if(!openFiles(filePath.c_str(), false)){
-      return false;
+    this->_onXmodemUpdateHandler(2,1);/** SD card problem */
+    return false;
   }
   if(!workingFile){
+    this->_onXmodemUpdateHandler(1,2);/** file not found*/
     return false;
   }else{
     Serial2.println(workingFile.size());
@@ -227,15 +231,13 @@ void XModem::calc_chksum (byte *data, size_t dataSize, byte *chksum){
     crc_16_chksum(data,dataSize,chksum);
   }
 }
-/*bool XModem::send(byte *data, size_t data_len) {
-  return send(data, data_len, 1);
-}*/
 bool XModem::openFiles(const char * filePath, bool write){
   if (!SD.begin(microSD_CS_PIN)) {// change CS here
         return false;
     }
     if(write){
       if(SD.exists(filePath)){
+        if(!_onXmodemUpdateHandler(1,1))return false;/** delete file warning */
         SD.remove(filePath);
       }
       workingFile = SD.open(filePath, FILE_WRITE);
@@ -509,13 +511,13 @@ bool XModem::tx(struct packet *p, byte *data, size_t data_len, byte *blk_id) {
   return true;
 }
 bool XModem::txFile(struct packet *p,byte *blk_id) {
-  String fgh = "fghjk";
+  
   //flush incoming data before starting
   while(_serial->available()) _serial->read();
   int aa = workingFile.available();
   while (aa > 0) {
     size_t bytesRead = workingFile.read(p->data, _data_bytes);
-    if(bytesRead < _data_bytes){
+    if(bytesRead < _data_bytes){// send loop
       for (int i = _data_bytes - (_data_bytes - bytesRead); i < _data_bytes; i++) {
         p->data[i] = 0x1A;
       }
@@ -523,6 +525,7 @@ bool XModem::txFile(struct packet *p,byte *blk_id) {
     build_packet(p, blk_id, p->data, _data_bytes);
     increment_id(blk_id, _id_bytes);
     if(!send_packet(p)) return false;
+    if(!this->_onXmodemUpdateHandler(0,(uint8_t)*blk_id)) return false;/** reports a transmitted ok packet */
     aa = workingFile.available();
   }
 
@@ -631,16 +634,12 @@ bool XModem::find_byte_timed(byte b, byte timeout_secs) {
   return false;
 }
 
-/** how do i hate buffering
+/**
  * https://github.com/arduino-libraries/SD/blob/85dbcca432d1b658d0d848f5f7ba0a9e811afc04/examples/NonBlockingWrite/NonBlockingWrite.ino
 */
 bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, size_t dataSize) {
-  /*String dataBuffer(data,dataSize);
-  workingFile.print(dataBuffer);
-  totalDebug+= dataSize;
-  */
 
-  if(binary){
+  if(binary){ // receive consequent loop
     sizeReceived += dataSize;
     if(sizeReceived > sizeKnown){
       if((sizeReceived-sizeKnown) > dataSize){// if sizeKnown is wrong, not correct
@@ -654,7 +653,7 @@ bool XModem::dummy_rx_block_handler(byte *blk_id, size_t idSize, byte *data, siz
     workingFile.write(data,dataSize);// has d'escriure el tros que ell diu
   }
   workingFile.flush();
-
+  if(!this->_onXmodemUpdateHandler(0,(uint8_t)*blk_id)) return false;/** reports a received ok packet */
   return true;
 }
 
