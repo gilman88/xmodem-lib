@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "atmega328p_test1": "cpp",
+        "atmega328p_send": "cpp"
+    }
+}

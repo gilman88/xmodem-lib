@@ -68,11 +68,7 @@ void XModem::bufferPacketReads(bool b) {
 bool XModem::pathAssert(const char * path){// no pot començar amb / not start /
 
   // Ensure the SPI pinout the SD card is connected to is configured properly
-  if (!SD.begin(microSD_CS_PIN)) {
-    Serial2.println("initialization failed!");
-    return false;
-  }
-  
+
   String build;
   String stringPath(path);
   
@@ -99,7 +95,6 @@ bool XModem::pathAssert(const char * path){// no pot començar amb / not start /
         }
     }
 
-  SD.end(false);
   return true;
 }
 /**
@@ -234,9 +229,6 @@ void XModem::calc_chksum (byte *data, size_t dataSize, byte *chksum){
   }
 }
 bool XModem::openFiles(const char * filePath, bool write){
-  if (!SD.begin(microSD_CS_PIN)) {// change CS here
-        return false;
-    }
     if(write){
       if(SD.exists(filePath)){
         if(!_onXmodemUpdateHandler(1,1))return false;/** delete file warning */
@@ -252,7 +244,6 @@ bool XModem::openFiles(const char * filePath, bool write){
 }
 void XModem::closeFiles(bool success){
     workingFile.close();
-    SD.end(false);
 }
 // INTERNAL RECEIVE METHODS
 bool XModem::init_rx() {
@@ -334,7 +325,7 @@ bool XModem::rx() {
           }
 
           if(matches != _id_bytes) {
-            //Serial2.println("$");
+            this->_onXmodemUpdateHandler(3,0);
             break;
             }
         }
@@ -346,12 +337,7 @@ bool XModem::rx() {
           size_t padding_bytes = 0;
           //count number of padding SUB bytes
           while(p.data[_data_bytes - 1 - padding_bytes] == SUB){
-            
             ++padding_bytes;
-            
-              Serial2.println(padding_bytes);
-              Serial2.println('-');
-    
           }
           if(!dummy_rx_block_handler(p.id, _id_bytes, p.data, _data_bytes - padding_bytes)) break;
         }
@@ -360,7 +346,7 @@ bool XModem::rx() {
 
         for(size_t i = 0; i < _id_bytes; ++i) prev_blk_id[i] = expected_id[i];
       }else{
-        //Serial2.println("%");
+        this->_onXmodemUpdateHandler(3,1);
       }
 
       //signal acknowledgment
@@ -380,18 +366,18 @@ bool XModem::rx() {
       // Unexpected response and resync attempt failed so fail out
       if(response != SOH && !find_header()) break;
     } else {
-      Serial2.println("errA");
+      this->_onXmodemUpdateHandler(3,2);
       if(++errors > retry_limit) {
-        Serial2.println("errB");
+        this->_onXmodemUpdateHandler(3,3);
         break;// packet error
       }
       byte response = tx_signal(NAK);
       if(response == CAN) {
-        Serial2.println("errC");
+        this->_onXmodemUpdateHandler(3,4);
         break;
       }
       if(response != SOH && !find_header()) {
-        Serial2.println("errD");
+        this->_onXmodemUpdateHandler(3,5);
         break;
         }
     }
@@ -516,8 +502,8 @@ bool XModem::txFile(struct packet *p,byte *blk_id) {
   
   //flush incoming data before starting
   while(_serial->available()) _serial->read();
-  int aa = workingFile.available();
-  while (aa > 0) {
+  
+  while (workingFile.available() > 0) {
     size_t bytesRead = workingFile.read(p->data, _data_bytes);
     if(bytesRead < _data_bytes){// send loop
       for (int i = _data_bytes - (_data_bytes - bytesRead); i < _data_bytes; i++) {
@@ -528,7 +514,6 @@ bool XModem::txFile(struct packet *p,byte *blk_id) {
     increment_id(blk_id, _id_bytes);
     if(!send_packet(p)) return false;
     if(!this->_onXmodemUpdateHandler(0,(uint8_t)*blk_id)) return false;/** reports a transmitted ok packet */
-    aa = workingFile.available();
   }
 
   return true;
@@ -557,11 +542,18 @@ bool XModem::send_packet(struct packet *p) {
     _serial->write(p->chksum, _chksum_bytes);
 
     byte response = rx_signal();
-    if(response == ACK) return true;
-    if(response == NAK) continue;
+    if(response == ACK) return true; // add this->_onXmodemUpdateHandler(...
+    if(response == NAK) {
+      this->_onXmodemUpdateHandler(3,6);
+      continue;
+      }
     if(response == CAN) {
+      this->_onXmodemUpdateHandler(3,8);
       response = rx_signal();
-      if(response == CAN) break;
+      if(response == CAN) {
+        this->_onXmodemUpdateHandler(3,9);
+        break;
+      }
     }
   } while(tries++ < retry_limit);
 

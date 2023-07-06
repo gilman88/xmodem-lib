@@ -6,7 +6,7 @@
 
 /**
  * Working on rp2040, platform.io https://github.com/earlephilhower/platform-raspberrypi ; || https://github.com/maxgerhardt/platform-raspberrypi.git
- * XModem send example
+ * XModem receive example
  * Serial1 is XModem 9600
  * Serial2 is Console prompt 57600
  * 
@@ -50,25 +50,16 @@ void printDirectory(File dir, int numTabs) {
   }
 }
 void printSd(){
-  Serial2.print("Initializing SD card...");
-
-  if (!SD.begin(microSD_CS_PIN)) {
-    Serial2.println("initialization failed!");
-    return;
-  }
-  Serial2.println("initialization done.");
 
   root = SD.open("/");
 
   printDirectory(root, 0);
 
-  Serial2.println("done!");
-
-  SD.end(false);
 }
 void resetFunc (){
-  Serial2.println("reset");
-  delay(50000);
+  SD.end();
+  mySerial.println("reset s00n, may eject sd card");
+  delay(5000);
   watchdog_enable(1, 1);
   while(1);
 }
@@ -76,9 +67,10 @@ bool getMessageFromXmodem(uint8_t code,uint8_t val){
   
   switch(code) {
     case 0:// val = packetId
-      /** use myXModem.sizeKnown for progress bar */
-      Serial2.print(val);
-      Serial2.write('\n');
+      if((val%10)==0){
+        Serial2.print("\b\b");
+        Serial2.print((int)(((float)(val*128)/(float)myXModem.sizeKnown)*100));
+      }
       break;
     case 1:
       if(val==1){
@@ -107,6 +99,12 @@ void setup() {
   Serial2.begin(57600);
   Serial2.setTimeout(30000);
   Serial2.println("boot Serial 2");
+
+  Serial2.print("Initializing SD card...");
+  if (!SD.begin(microSD_CS_PIN)) {
+    Serial2.println("initialization failed!");
+    return;
+  }
   
   printSd();
   Serial2.println("File name?");
