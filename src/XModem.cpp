@@ -7,7 +7,7 @@ XModem::XModem(){
 void XModem::onXmodemUpdate(bool(*callback)(uint8_t code, uint8_t value)){
   _onXmodemUpdateHandler = callback;
 }
-bool XModem::begin(HardwareSerial &serial, XModem::ProtocolType type) {
+bool XModem::begin(Stream &serial, XModem::ProtocolType type) {
   if (this->_onXmodemUpdateHandler == nullptr)return false;
   _serial = &serial;
   _protocol = type;

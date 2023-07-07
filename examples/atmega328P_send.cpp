@@ -45,6 +45,7 @@ void printDirectory(File dir, int numTabs) {
       // files have sizes, directories do not
       mySerial.print("\t\t");
       mySerial.print(entry.size(), DEC);
+      mySerial.write('\n');
       //time_t cr = entry.getCreationTime();
       //time_t lw = entry.getLastWrite();
       //struct tm * tmstruct = localtime(&cr);
@@ -69,6 +70,7 @@ bool getMessageFromXmodem(uint8_t code,uint8_t val){
 void resetFunc(){
   SD.end();
   mySerial.println("reset s00n, may eject sd card");
+  delay(50000);
   cli();
   MCUSR &= ~(1<<WDRF);
   wdt_reset();

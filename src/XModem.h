@@ -31,7 +31,7 @@ class XModem {
     };
 
     XModem();
-    bool begin(HardwareSerial &serial, XModem::ProtocolType type = XModem::ProtocolType::XMODEM);
+    bool begin(Stream &serial, XModem::ProtocolType type = XModem::ProtocolType::XMODEM);
     void setIdSize(size_t size);
     void setChecksumSize(size_t size);
     void setDataSize(size_t size);
@@ -62,7 +62,7 @@ class XModem {
   private:
     ProtocolType _protocol;
     File workingFile;
-    HardwareSerial *_serial;
+    Stream *_serial;
     byte _rx_init_byte;
     size_t _id_bytes;
     size_t _chksum_bytes;

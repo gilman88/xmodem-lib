@@ -58,8 +58,8 @@ void printSd(){
 }
 void resetFunc (){
   SD.end();
-  mySerial.println("reset s00n, may eject sd card");
-  delay(5000);
+  Serial2.println("reset s00n, may eject sd card");
+  delay(50000);
   watchdog_enable(1, 1);
   while(1);
 }
