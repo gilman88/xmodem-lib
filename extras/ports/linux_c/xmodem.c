@@ -16,7 +16,7 @@
 #define SIGNAL_RETRY_DELAY_MICRO_SEC 99999
 
 void increment_id(unsigned char *id, size_t length);
-bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs);
+bool find_byte_timed(int fd, unsigned char byte, int timeout_secs);
 
 //XMODEM constants
 #define SOH (unsigned char) 0x01 //Start of Header
@@ -29,27 +29,28 @@ bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs);
 struct xmodem_packet {
   unsigned char *id;
   unsigned char *chksm;
-  char *data;
+  unsigned char *data;
 };
 
-bool _xmodem_init_rx(int *fd, struct xmodem_config *config);
-bool find_header(int *fd);
-bool _xmodem_rx(int *fd, struct xmodem_config *config);
-bool _xmodem_init_tx(int *fd, struct xmodem_config *config);
-bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, char *blk_id);
-bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *buffer);
-bool _xmodem_fill_buffer(int *fd, struct xmodem_config *config, unsigned char *buffer, size_t packet_bytes);
-unsigned char _xmodem_tx_signal(int *fd, unsigned char signal);
-unsigned char _xmodem_rx_signal(int *fd);
-bool _xmodem_send_packet(int *fd, struct xmodem_config *config, struct xmodem_packet *p);
-void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p, unsigned char *id, char *data, size_t data_len);
+bool _xmodem_init_rx(int fd, struct xmodem_config *config);
+bool find_header(int fd);
+bool _xmodem_rx(int fd, struct xmodem_config *config);
+bool _xmodem_init_tx(int fd, struct xmodem_config *config);
+bool _xmodem_tx(int fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, unsigned char *blk_id);
+bool _xmodem_read_block(int fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *buffer);
+bool _xmodem_fill_buffer(int fd, struct xmodem_config *config, unsigned char *buffer, size_t packet_bytes);
+unsigned char _xmodem_tx_signal(int fd, unsigned char signal);
+unsigned char _xmodem_rx_signal(int fd);
+bool _xmodem_send_packet(int fd, struct xmodem_config *config, struct xmodem_packet *p);
+void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p, unsigned char *id, unsigned char *data, size_t data_len);
 void fill_checksum_basic(unsigned char *data, size_t data_bytes, unsigned char *chksm);
 void fill_checksum_crc_16(unsigned char *data, size_t data_bytes, unsigned char *chksm);
 bool dummy_rx_block_handler(void *blk_id, size_t id_len, unsigned char *data, size_t data_len);
 void dummy_block_lookup(void *blk_id, size_t id_len, unsigned char *send_data, size_t data_len);
-bool _xmodem_close_tx(int *fd);
+bool _xmodem_close_tx(int fd);
 
-void init_config(struct xmodem_config* config, enum x_mode mode) {
+//NOTE: the mode argument has a default value - see header file
+void xmodem_init_config(struct xmodem_config* config, enum x_mode mode) {
   switch(mode) {
     case XMODEM:
       config->id_bytes = 1;
@@ -125,20 +126,20 @@ void print_byte(int fd, unsigned char byte) {
   }
 }
 
-bool xmodem_receive(int *fd, struct xmodem_config *config) {
+bool xmodem_receive(int fd, struct xmodem_config *config) {
   if(!_xmodem_init_rx(fd, config) || !_xmodem_rx(fd, config)) {
     //an unrecoverable error occured send cancels to terminate the transcation
     debug_print("\nError Cancelling transfer");
     unsigned char b = CAN;
-    write(*fd, &b, 1);
-    write(*fd, &b, 1);
-    write(*fd, &b, 1);
+    write(fd, &b, 1);
+    write(fd, &b, 1);
+    write(fd, &b, 1);
     return false;
   }
   return true;
 }
 
-bool xmodem_send(int *fd, struct xmodem_config *config, unsigned char *data, size_t data_len, unsigned long long start_id) {
+bool xmodem_send(int fd, struct xmodem_config *config, unsigned char *data, size_t data_len, unsigned long long start_id) {
   unsigned char *id = malloc(config->id_bytes);
 
   //convert the start id to big endian format
@@ -159,11 +160,11 @@ bool xmodem_send(int *fd, struct xmodem_config *config, unsigned char *data, siz
   return result;
 }
 
-bool xmodem_lookup_send(int *fd, struct xmodem_config *config, unsigned long long id) {
-  return xmodem_send(fd, config, (char *) NULL, 0, id);
+bool xmodem_lookup_send(int fd, struct xmodem_config *config, unsigned long long id) {
+  return xmodem_send(fd, config, (unsigned char *) NULL, 0, id);
 }
 
-bool xmodem_send_bulk_data(int *fd, struct xmodem_config *config, struct xmodem_bulk_data container) {
+bool xmodem_send_bulk_data(int fd, struct xmodem_config *config, struct xmodem_bulk_data container) {
   if(container.count == 0) return false;
 
   struct xmodem_packet p;
@@ -192,9 +193,9 @@ bool xmodem_send_bulk_data(int *fd, struct xmodem_config *config, struct xmodem_
     //an unrecoverable error occured send cancels to terminate the transcation
     debug_print("\nError Cancelling transfer");
     unsigned char b = CAN;
-    write(*fd, &b, 1);
-    write(*fd, &b, 1);
-    write(*fd, &b, 1);
+    write(fd, &b, 1);
+    write(fd, &b, 1);
+    write(fd, &b, 1);
   }
 
   debug_print("\nDone");
@@ -210,14 +211,14 @@ inline void increment_id(unsigned char *id, size_t length) {
   } while(index--);//when we hit an index of zero then we have incremented all the bytes
 }
 
-bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs) {
+bool find_byte_timed(int fd, unsigned char byte, int timeout_secs) {
   unsigned char b = 0;
   time_t end = time(NULL) + timeout_secs;
   do {
     //if no data is available sleep and check again before checking the value of b
-    if(!read(*fd, &b, 1)) {
+    if(!read(fd, &b, 1)) {
       usleep(500);
-      read(*fd, &b, 1);
+      read(fd, &b, 1);
     }
 
 #ifdef XMODEM_RESPONSE_DEBUG
@@ -228,11 +229,11 @@ bool find_byte_timed(int *fd, unsigned char byte, int timeout_secs) {
   return false;
 }
 
-bool _xmodem_init_rx(int *fd, struct xmodem_config *config) {
+bool _xmodem_init_rx(int fd, struct xmodem_config *config) {
   debug_print("Initializing Receive Transaction... ");
   unsigned char i = 0;
   do {
-    write(*fd, &config->rx_init_byte, 1);
+    write(fd, &config->rx_init_byte, 1);
     if(find_byte_timed(fd, SOH, 10)) {
       debug_print("Done\n");
       return true;
@@ -241,17 +242,17 @@ bool _xmodem_init_rx(int *fd, struct xmodem_config *config) {
   return false;
 }
 
-bool find_header(int *fd) {
+bool find_header(int fd) {
   unsigned char i = 0;
   static unsigned char retry_byte = NAK;
   do {
-    if(i != 0) write(*fd, &retry_byte, 1);
+    if(i != 0) write(fd, &retry_byte, 1);
     if(find_byte_timed(fd, SOH, 10)) return true;
   } while(i++ < RETRY_LIMIT);
   return false;
 }
 
-bool _xmodem_rx(int *fd, struct xmodem_config *config) {
+bool _xmodem_rx(int fd, struct xmodem_config *config) {
   bool result = false;
 
   unsigned char *buffer;
@@ -329,7 +330,7 @@ bool _xmodem_rx(int *fd, struct xmodem_config *config) {
         if(response == CAN) break;
         if(response == EOT) {
           buffer[0] = ACK;
-          write(*fd, buffer, 1);
+          write(fd, buffer, 1);
           result = true;
           break;
         }
@@ -348,7 +349,7 @@ bool _xmodem_rx(int *fd, struct xmodem_config *config) {
   return result;
 }
 
-bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *buffer) {
+bool _xmodem_read_block(int fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *buffer) {
   debug_print("\nReading packet ");
 #if defined(XMODEM_BUFFER_PACKET_READS)
   size_t b_pos = 2*config->id_bytes + config->chksm_bytes + config->data_bytes;
@@ -391,8 +392,8 @@ bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_pac
   //can only read 1 byte at a time because of our serial device settings VMIN/VTIME
   unsigned char tmp;
   for(size_t i = 0; i < config->id_bytes; ++i) {
-    if(read(*fd, p->id + i, 1) <= 0) return false;
-    if(read(*fd, &tmp, 1) <= 0) return false;
+    if(read(fd, p->id + i, 1) <= 0) return false;
+    if(read(fd, &tmp, 1) <= 0) return false;
 
     debug_print_byte(p->id[i]);
     debug_print_byte(tmp);
@@ -416,7 +417,7 @@ bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_pac
 
   config->calc_chksum(p->data, config->data_bytes, p->chksm);
   for(size_t i = 0; i < config->chksm_bytes; ++i) {
-    if(read(*fd, &tmp, 1) <= 0) return false;
+    if(read(fd, &tmp, 1) <= 0) return false;
     debug_print_byte(tmp);
     if(p->chksm[i] != tmp) return false;
   }
@@ -425,10 +426,10 @@ bool _xmodem_read_block(int *fd, struct xmodem_config *config, struct xmodem_pac
   return true;
 }
 
-bool _xmodem_fill_buffer(int *fd, struct xmodem_config *config, unsigned char *buffer, size_t bytes) {
+bool _xmodem_fill_buffer(int fd, struct xmodem_config *config, unsigned char *buffer, size_t bytes) {
   size_t count = 0;
   while(count < bytes) {
-    ssize_t r = read(*fd, buffer + count, bytes - count);
+    ssize_t r = read(fd, buffer + count, bytes - count);
     for(ssize_t i = 0; i < r; ++i) debug_print_byte(buffer[count + i]);
 
     //the baud rate / sending device may be much slower than ourselves so
@@ -441,7 +442,7 @@ bool _xmodem_fill_buffer(int *fd, struct xmodem_config *config, unsigned char *b
   return true;
 }
 
-bool _xmodem_init_tx(int *fd, struct xmodem_config *config) {
+bool _xmodem_init_tx(int fd, struct xmodem_config *config) {
   debug_print("Initializing Send Transaction... ");
   unsigned char i = 0;
   do {
@@ -453,12 +454,12 @@ bool _xmodem_init_tx(int *fd, struct xmodem_config *config) {
   return false;
 }
 
-bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, char *blk_id) {
-  char *data_ptr = data;
-  char *data_end = data_ptr + data_len;
+bool _xmodem_tx(int fd, struct xmodem_config *config, struct xmodem_packet *p, unsigned char *data, size_t data_len, unsigned char *blk_id) {
+  unsigned char *data_ptr = data;
+  unsigned char *data_end = data_ptr + data_len;
 
   //flush the incoming stream before starting
-  tcflush(*fd, TCIFLUSH);
+  tcflush(fd, TCIFLUSH);
 
   if(data == NULL) {
     //need to use block_lookup to fill in the packet data
@@ -483,7 +484,7 @@ bool _xmodem_tx(int *fd, struct xmodem_config *config, struct xmodem_packet *p, 
   return true;
 }
 
-bool _xmodem_close_tx(int *fd) {
+bool _xmodem_close_tx(int fd) {
   unsigned char error_responses = 0;
   while(error_responses < RETRY_LIMIT) {
     unsigned char response = _xmodem_tx_signal(fd, EOT);
@@ -496,7 +497,7 @@ bool _xmodem_close_tx(int *fd) {
   return false;
 }
 
-void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p, unsigned char *id, char *data, size_t data_len) {
+void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p, unsigned char *id, unsigned char *data, size_t data_len) {
   debug_print("\nBuilding packet for block ");
   for(size_t i = 0; i < config->id_bytes; ++i) debug_print_byte(id[i]);
   debug_print("\n");
@@ -507,7 +508,7 @@ void _xmodem_build_packet(struct xmodem_config *config, struct xmodem_packet *p,
   config->calc_chksum(p->data, config->data_bytes, p->chksm);
 }
 
-bool _xmodem_send_packet(int *fd, struct xmodem_config *config, struct xmodem_packet *p) {
+bool _xmodem_send_packet(int fd, struct xmodem_config *config, struct xmodem_packet *p) {
   static unsigned char start_byte = SOH;
 
   debug_print("Packet:\n");
@@ -524,14 +525,14 @@ bool _xmodem_send_packet(int *fd, struct xmodem_config *config, struct xmodem_pa
     debug_print("\nSending packet: ");
     --tries;
     //Sending packet
-    write(*fd, &start_byte, 1);
+    write(fd, &start_byte, 1);
     for(size_t i = 0; i < config->id_bytes; ++i) {
       unsigned char compl = ~p->id[i];
-      write(*fd, p->id+i, 1);
-      write(*fd, &compl, 1);
+      write(fd, p->id+i, 1);
+      write(fd, &compl, 1);
     }
-    write(*fd, p->data, config->data_bytes);
-    write(*fd, p->chksm, config->chksm_bytes);
+    write(fd, p->data, config->data_bytes);
+    write(fd, p->chksm, config->chksm_bytes);
     debug_print("Done ");
 
     //Waiting for response
@@ -546,12 +547,12 @@ bool _xmodem_send_packet(int *fd, struct xmodem_config *config, struct xmodem_pa
   return false;
 }
 
-unsigned char _xmodem_tx_signal(int *fd, unsigned char signal) {
+unsigned char _xmodem_tx_signal(int fd, unsigned char signal) {
   if(signal == NAK) {
     //make sure the line is clear
     //TODO: better approach?
     sleep(1);
-    tcflush(*fd, TCIFLUSH);
+    tcflush(fd, TCIFLUSH);
   }
 
   debug_print_byte(signal);
@@ -560,8 +561,8 @@ unsigned char _xmodem_tx_signal(int *fd, unsigned char signal) {
   unsigned char b;
   do {
     unsigned char x = 0;
-    write(*fd, &signal, 1);
-    while(read(*fd, &b, 1) != 1 && ++x < RETRY_LIMIT) usleep(SIGNAL_RETRY_DELAY_MICRO_SEC);
+    write(fd, &signal, 1);
+    while(read(fd, &b, 1) != 1 && ++x < RETRY_LIMIT) usleep(SIGNAL_RETRY_DELAY_MICRO_SEC);
 
     debug_print_byte(b);
     switch(b) {
@@ -576,10 +577,10 @@ unsigned char _xmodem_tx_signal(int *fd, unsigned char signal) {
   return 255;
 }
 
-unsigned char _xmodem_rx_signal(int *fd) {
+unsigned char _xmodem_rx_signal(int fd) {
   unsigned char i = 0;
   unsigned char b;
-  while(read(*fd, &b, 1) != 1 && ++i < RETRY_LIMIT) usleep(SIGNAL_RETRY_DELAY_MICRO_SEC);
+  while(read(fd, &b, 1) != 1 && ++i < RETRY_LIMIT) usleep(SIGNAL_RETRY_DELAY_MICRO_SEC);
 
   debug_print_byte(b);
   switch(b) {

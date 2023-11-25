@@ -25,12 +25,12 @@ int main(int argc, char** argv) {
     exit(1);
   }
   struct xmodem_config config = {};
-  init_config(&config);
+  xmodem_init_config(&config);
 
   //you can modify the library configuration here
   config.rx_block_handler = handler;
 
-  while(!xmodem_receive(&fd, &config)) {}
+  while(!xmodem_receive(fd, &config)) {}
   printf("\nDone");
 
   printf("\nclosing device\n");

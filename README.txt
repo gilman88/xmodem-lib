@@ -211,13 +211,15 @@ As such knowing approximately how fast a given configuration can run recieve
 data without using trial and error is very helpful so I have recorded the
 maximum stable recieve() baud rates observed using a simple sketch.
 
+#TODO: We need to formalize this test case
 _________________________________________________________________________________________________________
 |                    |                                   |          |      |           bytes            |
 |         name       |                fqbn               | buffered | baud |----------------------------|
 |                    |                                   |          | rate | packet | id | chksm | data |
 |--------------------|-----------------------------------|----------|------|--------|----|-------|------|
-| Generic nano board | arduino:avr:nano:cpu=atmega328old |     Y    |  4800|      69|   2|      2|    64|
-| Generic nano board | arduino:avr:nano:cpu=atmega328old |     N    |  1200|      69|   2|      2|    64|
+| Generic nano board | arduino:avr:nano:cpu=atmega328old |     Y    |  4800|      70|   2|      2|    64|
+| Generic nano board | arduino:avr:nano:cpu=atmega328old |     N    |  1200|      70|   2|      2|    64|
+| Generic nano board | arduino:avr:nano:cpu=atmega328old |     N    |  9600|      67|   1|      1|    64|
 ---------------------------------------------------------------------------------------------------------
 
 ^ Even when a serial connection uses software flow control it is often not

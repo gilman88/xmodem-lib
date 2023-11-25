@@ -1,5 +1,8 @@
 #include <XModem.h>
 XModem xmodem;
+//The arduino toolchain will add these declarations automatically but doing
+//manually so things also just work if someone uses a different/custom toolchain
+bool process_block(void *blk_id, size_t idSize, byte *data, size_t dataSize);
 
 /*
  * You can test this over your USB port using lrzsz: `stty -F /dev/ttyUSB0 4800 && sx -vaX /path/to/send/file > /dev/ttyUSB0 < /dev/ttyUSB0`
@@ -16,12 +19,12 @@ void loop() {
   xmodem.receive();
 }
 
-bool process_block(void *blk_id, byte *data, size_t dataSize) {
+bool process_block(void *blk_id, size_t idSize, byte *data, size_t dataSize) {
   byte id = *((byte *) blk_id);
   for(int i = 0; i < dataSize; ++i) {
     //do stuff with the recieved data
   }
 
-  //return false to stop the transfer
+  //return false to stop the transfer early
   return true;
 }

@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
   struct xmodem_config config = {};
-  init_config(&config);
+  xmodem_init_config(&config);
 
   //you can modify the library configuration here
   /*
@@ -26,8 +26,8 @@ int main(int argc, char** argv) {
   config.chksm_bytes = 1;
   */
 
-  char *data = "This_is_a_64_byte_xmodem_packet.Normally_they_are_128_bytes_tho.tHIS_IS_A_64_BYTE_XMODEM_PACKET.nORMALLY_THEY_ARE_128_BYTES_THO.This_is_a_64_byte_xmodem_packet.Normally_they_are_128_bytes_tho.";
-  while(!xmodem_send(&fd, &config, data, strlen(data))) {}
+  unsigned char *data = "This_is_a_64_byte_xmodem_packet.Normally_they_are_128_bytes_tho.tHIS_IS_A_64_BYTE_XMODEM_PACKET.nORMALLY_THEY_ARE_128_BYTES_THO.This_is_a_64_byte_xmodem_packet.Normally_they_are_128_bytes_tho.";
+  while(!xmodem_send(fd, &config, data, strlen(data))) {}
   printf("\nDone");
 
   printf("\nclosing device\n");
