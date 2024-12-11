@@ -201,6 +201,26 @@ bool send_bulk_data(Bulk Data Struct)
   first block_id for XModem is 1. So if you need to transmit the 0 block_id then
   make sure to transmit another block_id first.
 
+KNOWN EDGE CASES
+
+XModem packets that happen to end in 0x1A (SUB) bytes will be interpreted as
+padding bytes at the receiving end and passed to the Recieve Block Handler with
+a smaller dataSize parameter. This can cause some confusion especially when
+sending raw binary data.
+There are a number of possible workarounds depending on your situation:
+ - If you have another non SUB byte sequence that you know can't occur in your data
+   then you could inject it into the XModem packets that are sent (effectively
+   making your packet size smaller) as a sentinel that the receiving end will
+   know to discard.
+ - If you can ensure that packets will always be completely filled you can
+   ignore the dataSize parameter and access the data buffer as if dataSize
+   was set to the full packet size. The data buffer always contains all the
+   data that was received including the padding bytes.
+ - If you are using the packet block id's in a way that maps one-to-one to
+   some physical/logical destination and have extra unused block id's, you can
+   use one of them as a communication or control page that tells the receiving
+   end to expect X bytes of raw binary data
+
 PERFORMANCE
 
 Disregarding line corruption (bit-flips), reliable communication is dependent
