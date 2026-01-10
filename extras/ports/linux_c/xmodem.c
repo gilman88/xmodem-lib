@@ -5,7 +5,7 @@
 #include <string.h>
 
 #ifdef XMODEM_DEBUG
-#define debug_print(format, ...) fprintf(stdout, format, #__VA_ARGS__)
+#define debug_print(format, ...) fprintf(stdout, format __VA_OPT__(,) __VA_ARGS__)
 #define debug_print_byte(byte) print_byte(fileno(stdout), byte)
 #else
 #define debug_print(...) do { } while(0)
